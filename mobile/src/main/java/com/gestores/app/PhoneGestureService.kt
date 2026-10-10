@@ -1,5 +1,6 @@
 package com.gestores.app
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,9 +12,14 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,20 +41,47 @@ object PhoneBus {
 /**
  * CELULAR EN LA MUÑECA
  * Usa el acelerómetro y el giroscopio del celular (los mismos sensores de un reloj)
- * para reconocer los gestos. Cada gesto pasa por el filtro (horario + confirmación)
- * y el resultado llega como aviso al reloj Honor.
+ * para reconocer los gestos, ejecuta la acción y envía una notificación que
+ * aparece y vibra en el reloj Honor (o cualquier reloj que reciba notificaciones).
  */
 class PhoneGestureService : Service(), SensorEventListener {
 
     companion object {
         private const val ACTION_STOP = "stop"
         private const val CHANNEL_RUN = "detectando"
+        private const val CHANNEL_RESULT = "resultados"   // ← este canal es el que llega al reloj
 
         fun start(ctx: Context) = ContextCompat.startForegroundService(ctx, Intent(ctx, PhoneGestureService::class.java))
         fun stop(ctx: Context) = ctx.stopService(Intent(ctx, PhoneGestureService::class.java))
+        fun loadSensitivity(ctx: Context) = ctx.prefs().getFloat("phone_sensitivity", 1f)
+        fun saveSensitivity(ctx: Context, v: Float) {
+            PhoneBus.sensitivity.value = v
+            ctx.prefs().edit().putFloat("phone_sensitivity", v).apply()
+        }
 
-        /** Aviso de prueba para comprobar que el reloj recibe las notificaciones. */
-        fun notifyWatch(ctx: Context, title: String, text: String) = Notify.result(ctx, title, text)
+        /** Notificación que muestra el reloj. También sirve para probar sin hacer gestos. */
+        @SuppressLint("MissingPermission")
+        fun notifyWatch(ctx: Context, title: String, text: String) {
+            createChannels(ctx)
+            val n = NotificationCompat.Builder(ctx, CHANNEL_RESULT)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setAutoCancel(true)
+                .setTimeoutAfter(15_000)        // se borra sola para no llenar el reloj
+                .build()
+            runCatching { NotificationManagerCompat.from(ctx).notify((System.currentTimeMillis() % 100000).toInt() + 100, n) }
+        }
+
+        private fun createChannels(ctx: Context) {
+            val nm = ctx.getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_RUN, "Detección de gestos", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, "Resultado de gestos (reloj)", NotificationManager.IMPORTANCE_HIGH)
+                .apply { enableVibration(true) })
+        }
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -61,10 +94,8 @@ class PhoneGestureService : Service(), SensorEventListener {
     override fun onCreate() {
         super.onCreate()
         Learner.init(this)
-        val cfg = ConfigStore.load(this)
-        PhoneBus.sensitivity.value = cfg.sensitivity
-        getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(CHANNEL_RUN, "Detección de gestos", NotificationManager.IMPORTANCE_LOW))
+        createChannels(this)
+        PhoneBus.sensitivity.value = loadSensitivity(this)
         startForeground(3, buildOngoing())
         sensors = getSystemService(SENSOR_SERVICE) as SensorManager
         sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
@@ -73,9 +104,7 @@ class PhoneGestureService : Service(), SensorEventListener {
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gestores:muneca").apply { acquire(4 * 60 * 60 * 1000L) }
         PhoneBus.running.value = true
-        PhoneBus.result.value = if (cfg.isActiveNow()) "Escuchando gestos…" else "Encendido, pero fuera de horario"
-        // Aviso de estado en el reloj
-        Notify.result(this, "✅ Gestores activo", cfg.scheduleText() + if (cfg.confirm) " · pregunta antes de actuar" else "")
+        PhoneBus.result.value = "Escuchando gestos…"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,7 +118,6 @@ class PhoneGestureService : Service(), SensorEventListener {
         PhoneBus.running.value = false
         PhoneBus.result.value = "Detección apagada"
         PhoneBus.trainingTarget.value = null
-        Notify.result(this, "⏹ Gestores detenido", "Los gestos ya no se detectan")
         scope.cancel()
         super.onDestroy()
     }
@@ -111,7 +139,7 @@ class PhoneGestureService : Service(), SensorEventListener {
             Learner.add(training, seg)
             PhoneBus.trainCount.value = Learner.count(training)
             PhoneBus.result.value = "Muestra ${Learner.count(training)} guardada"
-            vibrateLevel(this, 2, double = true)
+            vibrate(longArrayOf(0, 40, 60, 40))
             return
         }
         // Primero la IA (gestos aprendidos), luego los gestos básicos
@@ -120,10 +148,21 @@ class PhoneGestureService : Service(), SensorEventListener {
     }
 
     private fun onGesture(id: String) {
-        val cfg = ConfigStore.load(this)
-        vibrateLevel(this, cfg.vibration)
+        vibrate(longArrayOf(0, 60))
         PhoneBus.lastGesture.value = id
-        scope.launch { PhoneBus.result.value = Gate.handle(this@PhoneGestureService, id) }
+        PhoneBus.result.value = "Ejecutando…"
+        scope.launch {
+            val result = ActionRunner.runGesture(this@PhoneGestureService, id)
+            PhoneBus.result.value = result
+            EventLog.add(this@PhoneGestureService, id, result)
+            notifyWatch(this@PhoneGestureService, Gestures.label(id), result)   // aparece y vibra en el Honor
+        }
+    }
+
+    private fun vibrate(pattern: LongArray) {
+        val v: Vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(VibratorManager::class.java).defaultVibrator
+                          else @Suppress("DEPRECATION") getSystemService(VIBRATOR_SERVICE) as Vibrator
+        v.vibrate(VibrationEffect.createWaveform(pattern, -1))
     }
 
     private fun buildOngoing(): Notification {
