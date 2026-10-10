@@ -11,19 +11,6 @@ Tres partes que trabajan juntas:
 Funciona en el **emulador de reloj** de Android Studio y en relojes reales con **Wear OS**
 (Galaxy Watch 4 o más nuevo, Pixel Watch, TicWatch).
 
-## Vista de reloj en el celular
-La app del celular se ve como un reloj redondo. Desliza dentro de la esfera:
-**Hora** (activar gestos, confirmar Sí/No) → **Apps** (tus apps en círculo, Gestores al centro, "+" para elegirlas)
-→ **Gestos** (toca uno para cambiar su acción) → **Ajustes** (preguntar antes, sensibilidad, más ajustes).
-La corona del reloj vuelve a la hora.
-
-## Ajustes
-- **Preguntar antes de ejecutar**: confirma con "Sí" o repitiendo el mismo gesto antes de 8 s (funciona desde el reloj).
-- **Días**: todos, entre semana, fin de semana o días sueltos (L M X J V S D).
-- **Horario**: desde / hasta (admite horario nocturno, por ejemplo 22:00 a 06:00).
-- **Sensibilidad**: de poco a muy sensible. **Vibración**: apagada, suave, media o fuerte.
-- **Avisos**: se borran solos (5 s, 15 s, 1 min o nunca), se pueden deslizar, y hay botón para borrarlos todos.
-
 ## Opción usada: celular en la muñeca + reloj Honor
 Si tu reloj no es Wear OS (por ejemplo **Honor Choice Watch 2i**):
 1. Ponte el celular en la muñeca o el antebrazo con una banda deportiva.
