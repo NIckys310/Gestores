@@ -33,7 +33,7 @@ object Gestures {
         GestureDef("ia_3", "🧠", "Gesto IA 3", "Un movimiento tuyo que la IA aprende"),
     )
     val all = builtIn + ai
-    fun get(id: String) = all.firstOrNull { it.id == id }
+    fun get(id: String) = (all + Triggers.all).firstOrNull { it.id == id }
     fun label(id: String) = get(id)?.let { "${it.emoji} ${it.name}" } ?: id
 }
 
@@ -47,52 +47,9 @@ data class Rule(val type: String = "none", val value: String = "", val label: St
 @Serializable
 data class Config(
     val rules: Map<String, Rule> = emptyMap(),
-    val pcAddress: String = "",                          // ej. 192.168.1.10:8765
+    val pcAddress: String = "",       // ej. 192.168.1.10:8765
     val pcToken: String = "gestores",
-    val confirm: Boolean = true,                         // preguntar antes de ejecutar
-    val days: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7),   // 1 = lunes … 7 = domingo
-    val startHour: Int = 0,                              // desde (0 a 23)
-    val endHour: Int = 24,                               // hasta (1 a 24)
-    val sensitivity: Float = 1f,                         // 0.6 poco sensible … 1.6 muy sensible
-    val vibration: Int = 2,                              // 0 apagada · 1 suave · 2 media · 3 fuerte
-    val clearAfterSec: Int = 15,                         // borrar avisos solos (0 = nunca)
-) {
-    /** ¿Los gestos están permitidos ahora según los días y el horario? */
-    fun isActiveNow(now: java.time.LocalDateTime = java.time.LocalDateTime.now()): Boolean {
-        if (now.dayOfWeek.value !in days) return false
-        if (startHour == endHour) return true
-        val h = now.hour
-        return if (startHour < endHour) h in startHour until endHour else (h >= startHour || h < endHour)
-    }
-
-    fun scheduleText(): String {
-        val d = when (days.sorted()) {
-            listOf(1, 2, 3, 4, 5, 6, 7) -> "Todos los días"
-            listOf(1, 2, 3, 4, 5) -> "Entre semana"
-            listOf(6, 7) -> "Fines de semana"
-            emptyList<Int>() -> "Ningún día"
-            else -> days.sorted().joinToString(" ") { DAY_LETTERS[it - 1] }
-        }
-        val h = if ((startHour == 0 && endHour == 24) || startHour == endHour) "todo el día"
-                else "de %02d:00 a %02d:00".format(startHour, endHour % 24)
-        return "$d, $h"
-    }
-
-    companion object { val DAY_LETTERS = listOf("L", "M", "X", "J", "V", "S", "D") }
-}
-
-/** Vibración con la fuerza elegida (0 apagada · 1 suave · 2 media · 3 fuerte). */
-fun vibrateLevel(ctx: Context, level: Int, double: Boolean = false) {
-    if (level <= 0) return
-    val amp = when (level) { 1 -> 70; 2 -> 160; else -> 255 }
-    val ms = when (level) { 1 -> 50L; 2 -> 80L; else -> 140L }
-    val v: android.os.Vibrator = if (android.os.Build.VERSION.SDK_INT >= 31)
-        ctx.getSystemService(android.os.VibratorManager::class.java).defaultVibrator
-    else @Suppress("DEPRECATION") ctx.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-    val effect = if (double) android.os.VibrationEffect.createWaveform(longArrayOf(0, ms, 90, ms), intArrayOf(0, amp, 0, amp), -1)
-                 else android.os.VibrationEffect.createOneShot(ms, amp)
-    v.vibrate(effect)
-}
+)
 
 val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -140,23 +97,67 @@ object PcActions {
 
 fun Context.prefs() = getSharedPreferences("gestores", Context.MODE_PRIVATE)
 
-/** Configuración guardada en el reloj (la envía el celular; sin celular usa la de abajo). */
+/** Reglas guardadas en el celular. Cada vez que cambian se envían al reloj. */
 object ConfigStore {
-    /** En el emulador, 10.0.2.2 es tu PC. En un reloj real, el celular envía la IP correcta. */
-    const val EMULATOR_PC = "10.0.2.2:8765"
-
     private val defaults = Config(
         rules = mapOf(
-            "alzar" to Rule("pc", "open:https://guardian-fauna.netlify.app", "PC: abrir Guardián"),
-            "bajar" to Rule("pc", "key:playpause", "PC: play / pausa"),
-            "girar" to Rule("pc", "key:right", "PC: siguiente diapositiva"),
-            "sacudir" to Rule("pc", "key:next", "PC: siguiente canción"),
-            "doble_golpe" to Rule("pc", "key:mute", "PC: silenciar"),
+            "alzar" to Rule("camera", "", "Abrir la cámara"),
+            "bajar" to Rule("media", "playpause", "Música: play / pausa"),
+            "girar" to Rule("media", "next", "Música: siguiente"),
+            "sacudir" to Rule("flashlight", "", "Linterna"),
+            "doble_golpe" to Rule("pc", "key:right", "PC: siguiente diapositiva"),
+            // Botones de música del reloj
+            "w_play" to Rule("flashlight", "", "Linterna"),
+            "w_next" to Rule("pc", "key:right", "PC: siguiente diapositiva"),
+            "w_prev" to Rule("pc", "key:left", "PC: diapositiva anterior"),
+            "w_next2" to Rule("camera", "", "Abrir la cámara"),
+            "w_prev2" to Rule("pc", "open:https://guardian-fauna.netlify.app", "PC: abrir Guardián"),
+            "w_volup" to Rule("pc", "key:volup", "PC: subir volumen"),
+            "w_voldown" to Rule("pc", "key:voldown", "PC: bajar volumen"),
         ),
     )
 
     fun load(ctx: Context): Config =
         ctx.prefs().getString("config", null)?.let { runCatching { json.decodeFromString(Config.serializer(), it) }.getOrNull() } ?: defaults
 
-    fun saveJson(ctx: Context, s: String) = ctx.prefs().edit().putString("config", s).apply()
+    fun save(ctx: Context, cfg: Config) {
+        ctx.prefs().edit().putString("config", json.encodeToString(Config.serializer(), cfg)).apply()
+        syncToWatch(ctx, cfg)
+    }
+
+    /** Envía las reglas y la dirección del PC al reloj. */
+    fun syncToWatch(ctx: Context, cfg: Config) {
+        val req = com.google.android.gms.wearable.PutDataMapRequest.create(Proto.PATH_CONFIG).apply {
+            dataMap.putString("json", json.encodeToString(Config.serializer(), cfg))
+            dataMap.putLong("time", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        com.google.android.gms.wearable.Wearable.getDataClient(ctx).putDataItem(req)
+    }
+}
+
+@Serializable
+data class LogEvent(val time: Long, val gesture: String, val result: String)
+
+/** Historial de los últimos gestos recibidos. */
+object EventLog {
+    private val ser = kotlinx.serialization.builtins.ListSerializer(LogEvent.serializer())
+    fun list(ctx: Context): List<LogEvent> =
+        ctx.prefs().getString("log", null)?.let { runCatching { json.decodeFromString(ser, it) }.getOrNull() } ?: emptyList()
+    fun add(ctx: Context, gesture: String, result: String) {
+        val l = (listOf(LogEvent(System.currentTimeMillis(), gesture, result)) + list(ctx)).take(20)
+        ctx.prefs().edit().putString("log", json.encodeToString(ser, l)).apply()
+    }
+}
+
+/** Botones de música de cualquier reloj (Honor, Huawei, Xiaomi, Amazfit…) usados como controles. */
+object Triggers {
+    val all = listOf(
+        GestureDef("w_play", "⏯️", "Botón play / pausa", "Botón central de música del reloj"),
+        GestureDef("w_next", "⏭️", "Botón siguiente", "Un toque en 'siguiente'"),
+        GestureDef("w_next2", "⏭️⏭️", "Siguiente ×2", "Dos toques rápidos en 'siguiente'"),
+        GestureDef("w_prev", "⏮️", "Botón anterior", "Un toque en 'anterior'"),
+        GestureDef("w_prev2", "⏮️⏮️", "Anterior ×2", "Dos toques rápidos en 'anterior'"),
+        GestureDef("w_volup", "🔊", "Volumen +", "Subir volumen desde el reloj"),
+        GestureDef("w_voldown", "🔉", "Volumen −", "Bajar volumen desde el reloj"),
+    )
 }
