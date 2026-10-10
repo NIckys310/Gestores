@@ -37,7 +37,6 @@ object Bus {
     val trainingTarget = MutableStateFlow<String?>(null)   // gesto IA que se está entrenando
     val trainCount = MutableStateFlow(0)
     val sensitivity = MutableStateFlow(1f)
-    val pending = MutableStateFlow<String?>(null)          // gesto esperando confirmación
 }
 
 /**
@@ -48,9 +47,6 @@ class GestureService : Service(), SensorEventListener {
 
     companion object {
         private const val ACTION_SIMULATE = "simulate"
-        private const val ACTION_CONFIRM = "confirm"
-        private const val ACTION_CANCEL = "cancel"
-        private const val CONFIRM_WINDOW = 8000L
         private const val EXTRA_GESTURE = "gesture"
         private const val CHANNEL = "gestores"
 
@@ -59,16 +55,12 @@ class GestureService : Service(), SensorEventListener {
         /** Para probar sin moverse (útil en el emulador). */
         fun simulate(ctx: Context, gestureId: String) = ContextCompat.startForegroundService(ctx,
             Intent(ctx, GestureService::class.java).setAction(ACTION_SIMULATE).putExtra(EXTRA_GESTURE, gestureId))
-        /** Botones "Sí" / "No" de la pantalla de confirmación del reloj. */
-        fun confirm(ctx: Context) = ContextCompat.startForegroundService(ctx, Intent(ctx, GestureService::class.java).setAction(ACTION_CONFIRM))
-        fun cancelPending(ctx: Context) = ContextCompat.startForegroundService(ctx, Intent(ctx, GestureService::class.java).setAction(ACTION_CANCEL))
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var sensors: SensorManager
     private var wakeLock: PowerManager.WakeLock? = null
     private val segmenter = MotionSegmenter(::onMovement)
-    private var pendingUntil = 0L
 
     private val ackListener = MessageClient.OnMessageReceivedListener { ev ->
         if (ev.path == Proto.PATH_ACK) {
@@ -96,14 +88,7 @@ class GestureService : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_SIMULATE -> intent.getStringExtra(EXTRA_GESTURE)?.let { onGesture(it, 1f) }
-            ACTION_CONFIRM -> Bus.pending.value?.let { id ->
-                Bus.pending.value = null
-                scope.launch { Bus.result.value = runDirect(id) }
-            }
-            ACTION_CANCEL -> { Bus.pending.value = null; Bus.result.value = "Cancelado" }
-        }
+        if (intent?.action == ACTION_SIMULATE) intent.getStringExtra(EXTRA_GESTURE)?.let { onGesture(it, 1f) }
         return START_STICKY
     }
 
@@ -144,34 +129,20 @@ class GestureService : Service(), SensorEventListener {
 
     @Suppress("UNUSED_PARAMETER")
     private fun onGesture(id: String, confidence: Float) {
-        val cfg = ConfigStore.load(this)
-        vibrateLevel(this, cfg.vibration)
+        vibrate(longArrayOf(0, 60))
         Bus.lastGesture.value = id
         Bus.result.value = "Enviando…"
         scope.launch {
             val nodes = runCatching { Wearable.getNodeClient(this@GestureService).connectedNodes.await() }.getOrDefault(emptyList())
             if (nodes.isNotEmpty()) {
-                // Hay celular: él revisa horario y confirmación, ejecuta y responde con un "ack"
+                // Hay celular: él ejecuta la acción y responde con un "ack"
                 nodes.forEach { n ->
                     runCatching { Wearable.getMessageClient(this@GestureService).sendMessage(n.id, Proto.PATH_GESTURE, id.toByteArray()).await() }
                 }
-                return@launch
+            } else {
+                // Sin celular: el reloj llama directo al PC o al dispositivo inteligente por Wi-Fi
+                Bus.result.value = runDirect(id)
             }
-            // Sin celular: el reloj decide solo y llama directo al PC o al dispositivo por Wi-Fi
-            if (!cfg.isActiveNow()) { Bus.result.value = "⏸ Fuera de horario (${cfg.scheduleText()})"; return@launch }
-            val rule = cfg.rules[id]
-            if (rule == null || rule.type == "none") { Bus.result.value = "⚠ Este gesto no tiene acción"; return@launch }
-            val now = System.currentTimeMillis()
-            val isRepeat = Bus.pending.value == id && now < pendingUntil
-            if (cfg.confirm && !isRepeat) {
-                Bus.pending.value = id
-                pendingUntil = now + CONFIRM_WINDOW
-                Bus.result.value = "❓ ¿${rule.label}?"
-                vibrateLevel(this@GestureService, cfg.vibration, double = true)
-                return@launch
-            }
-            Bus.pending.value = null
-            Bus.result.value = runDirect(id)
         }
     }
 
