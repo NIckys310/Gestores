@@ -1,5 +1,7 @@
 package com.gestores.app
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -91,7 +93,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/* Colores "modo ingeniero": salen del tema elegido en AJUSTES (ver Theme.kt) */
+/* Colores del reloj de lujo: salen del tema elegido en Ajustes (ver Theme.kt) */
 private val Deep: Color @Composable get() = LocalEng.current.bg
 private val CardColor: Color @Composable get() = LocalEng.current.panel
 private val Teal: Color @Composable get() = LocalEng.current.primary
@@ -112,14 +114,15 @@ class MainActivity : ComponentActivity() {
         }
         runCatching { ConfigStore.syncToWatch(this, ConfigStore.load(this)) }   // para un reloj Wear OS, si hay uno
         setContent {
-            var dark by rememberSaveable { mutableStateOf(ThemePrefs.load(this)) }
+            var mode by rememberSaveable { mutableStateOf(ThemePrefs.loadMode(this)) }
+            val dark = isDarkMode(mode)
             LaunchedEffect(dark) {
                 val t = android.graphics.Color.TRANSPARENT
                 val bars = if (dark) SystemBarStyle.dark(t) else SystemBarStyle.light(t, t)
                 enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
             }
             GestoresTheme(dark) {
-                WatchShell(dark, onDark = { dark = it; ThemePrefs.save(this, it) })
+                WatchShell(mode, onMode = { mode = it; ThemePrefs.saveMode(this, it) })
             }
         }
     }
@@ -127,7 +130,7 @@ class MainActivity : ComponentActivity() {
 
 /** Arranca mostrando el reloj (WatchHome); al tocarlo se despliega la app completa. Atrás vuelve al reloj. */
 @Composable
-fun WatchShell(dark: Boolean, onDark: (Boolean) -> Unit) {
+fun WatchShell(mode: String, onMode: (String) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = open) { open = false }
     AnimatedContent(
@@ -140,13 +143,13 @@ fun WatchShell(dark: Boolean, onDark: (Boolean) -> Unit) {
         },
         label = "watch",
     ) { isOpen ->
-        if (isOpen) PhoneApp(dark, onDark, onBackToWatch = { open = false }) else WatchHome(onOpen = { open = true })
+        if (isOpen) PhoneApp(mode, onMode, onBackToWatch = { open = false }) else WatchHome(onOpen = { open = true })
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit = {}) {
+fun PhoneApp(mode: String, onMode: (String) -> Unit, onBackToWatch: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val snack = remember { SnackbarHostState() }
@@ -183,11 +186,11 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
                         Image(painterResource(R.drawable.logo), null, Modifier.size(30.dp).clip(RoundedCornerShape(4.dp)))
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text("GESTORES://CONSOLE", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text("Gestores", style = MaterialTheme.typography.titleLarge)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (running) Teal else Gold))
                                 Spacer(Modifier.width(6.dp))
-                                Text(if (running) "SENSOR ONLINE" else "SENSOR OFFLINE",
+                                Text(if (running) "Detectando gestos" else "Detección apagada",
                                     color = if (running) Teal else Gold, style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -207,12 +210,13 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
         ) {
             // 00. Ajustes: tema negro / blanco
             item(key = "00") {
-                Module("00", "AJUSTES", "00" in openMods, { toggle("00") }) {
+                Module("00", "Ajustes", "00" in openMods, { toggle("00") }) {
                     Card {
-                        Text("TEMA DE LA INTERFAZ", color = Mint, fontWeight = FontWeight.Bold)
+                        Text("Tema", color = Mint, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = dark, onClick = { onDark(true) }, label = { Text("◼ NEGRO") })
-                            FilterChip(selected = !dark, onClick = { onDark(false) }, label = { Text("◻ BLANCO") })
+                            FilterChip(selected = mode == "system", onClick = { onMode("system") }, label = { Text("Automático") })
+                            FilterChip(selected = mode == "dark", onClick = { onMode("dark") }, label = { Text("Noche · negro y oro") })
+                            FilterChip(selected = mode == "light", onClick = { onMode("light") }, label = { Text("Día · marfil") })
                         }
                         Text("Se guarda automáticamente.", color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
@@ -221,14 +225,14 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
 
             // 01. Celular en la muñeca
             item(key = "01") {
-                Module("01", "MUÑECA", "01" in openMods, { toggle("01") }) {
+                Module("01", "Celular en la muñeca", "01" in openMods, { toggle("01") }) {
                     WristCard(onTestWatch = { PhoneGestureService.notifyWatch(ctx, "⌚ Prueba de Gestores", "Si ves esto en tu reloj, ¡todo está conectado!"); say("Aviso enviado al reloj") })
                 }
             }
 
             // 02. Permiso para abrir apps
             if (!canOverlay) item(key = "02") {
-                Module("02", "PERMISOS  [!]", "02" in openMods, { toggle("02") }) {
+                Module("02", "Permisos pendientes", "02" in openMods, { toggle("02") }) {
                     Card {
                         Text("Permiso para abrir apps", fontWeight = FontWeight.SemiBold, color = Gold)
                         Text("Para que un gesto abra apps aunque el celular esté bloqueado o en otra app, activa “Mostrar sobre otras apps”.",
@@ -241,11 +245,11 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
             }
 
             // 03. Entrenar IA
-            item(key = "03") { Module("03", "ENTRENAR IA", "03" in openMods, { toggle("03") }) { TrainCard() } }
+            item(key = "03") { Module("03", "Entrenar la IA", "03" in openMods, { toggle("03") }) { TrainCard() } }
 
             // 04. Qué hace cada gesto
             item(key = "04") {
-                Module("04", "GESTOS", "04" in openMods, { toggle("04") }) {
+                Module("04", "Qué hace cada gesto", "04" in openMods, { toggle("04") }) {
                     Gestures.all.forEach { g ->
                         RuleRow(g, cfg.rules[g.id] ?: Rule(),
                             onTest = { scope.launch { say(ActionRunner.execute(ctx, cfg.rules[g.id] ?: Rule(), cfg)) } },
@@ -256,7 +260,7 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
 
             // 05. Botones de música del reloj
             item(key = "05") {
-                Module("05", "BOTONES RELOJ", "05" in openMods, { toggle("05") }) {
+                Module("05", "Botones del reloj", "05" in openMods, { toggle("05") }) {
                     WatchButtonsCard()
                     Triggers.all.forEach { g ->
                         RuleRow(g, cfg.rules[g.id] ?: Rule(),
@@ -268,7 +272,7 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
 
             // 06. PC
             item(key = "06") {
-                Module("06", "PC", "06" in openMods, { toggle("06") }) {
+                Module("06", "Computador", "06" in openMods, { toggle("06") }) {
                     PcCard(cfg,
                         onSave = { update(it); say("Guardado") },
                         onTest = { scope.launch { say(ActionRunner.execute(ctx, Rule("pc", "ping", "Conexión con el PC"), cfg)) } })
@@ -277,7 +281,7 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
 
             // 07. Reloj Wear OS (si algún día tienes uno)
             item(key = "07") {
-                Module("07", "WEAR OS", "07" in openMods, { toggle("07") }) {
+                Module("07", "Reloj Wear OS", "07" in openMods, { toggle("07") }) {
                     Card {
                         Text(if (wearWatches.isEmpty()) "Reloj Wear OS: no conectado" else "Reloj Wear OS: ${wearWatches.joinToString()}",
                             fontWeight = FontWeight.SemiBold, color = if (wearWatches.isEmpty()) Gold else Teal)
@@ -289,9 +293,9 @@ fun PhoneApp(dark: Boolean, onDark: (Boolean) -> Unit, onBackToWatch: () -> Unit
 
             // 08. Historial
             item(key = "08") {
-                Module("08", "LOG", "08" in openMods, { toggle("08") }) {
+                Module("08", "Historial", "08" in openMods, { toggle("08") }) {
                     Card {
-                        if (log.isEmpty()) Text("> sin eventos", color = Muted)
+                        if (log.isEmpty()) Text("Aún no hay gestos registrados.", color = Muted)
                         val fmt = remember { SimpleDateFormat("HH:mm:ss", Locale("es")) }
                         log.forEach { e ->
                             Text("[${fmt.format(Date(e.time))}] ${Gestures.label(e.gesture)} → ${e.result}", color = Teal, style = MaterialTheme.typography.bodySmall)
@@ -418,25 +422,31 @@ private fun WatchButtonsCard() {
 }
 
 /* ---------------- Piezas comunes ---------------- */
-/** Módulo desplegable estilo consola: "[+] 04 > GESTOS". */
+/** Módulo desplegable con bisel dorado; el número va en romano como en una esfera de reloj. */
 @Composable
 private fun Module(code: String, title: String, open: Boolean, onToggle: () -> Unit, content: @Composable () -> Unit) {
     val eng = LocalEng.current
-    Column(Modifier.fillMaxWidth()) {
+    val roman = listOf("XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI").getOrElse(code.toIntOrNull() ?: 0) { code }
+    val arrow by androidx.compose.animation.core.animateFloatAsState(if (open) 90f else 0f, label = "flecha")
+    // Entrada: el módulo sube y aparece
+    val enter = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) { delay((code.toIntOrNull() ?: 0) * 45L); enter.animateTo(1f, tween(450)) }
+    Column(Modifier.fillMaxWidth().graphicsLayer { alpha = enter.value; translationY = (1 - enter.value) * 40f }) {
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
-                .border(1.dp, if (open) Teal else eng.border, RoundedCornerShape(4.dp))
-                .background(CardColor).clickable(onClick = onToggle).padding(horizontal = 12.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                .border(if (open) 1.5.dp else 1.dp, if (open) eng.goldBrush() else androidx.compose.ui.graphics.SolidColor(eng.border), RoundedCornerShape(14.dp))
+                .background(CardColor).clickable(onClick = onToggle).padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(if (open) "[–]" else "[+]", color = if (open) Teal else Gold, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(10.dp))
-            Text(code, color = Muted)
-            Spacer(Modifier.width(8.dp))
-            Text("> $title", color = Mint, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Box(Modifier.size(34.dp).clip(CircleShape).border(1.dp, eng.goldBrush(), CircleShape), contentAlignment = Alignment.Center) {
+                Text(roman, color = Teal, style = MaterialTheme.typography.labelSmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(title, color = Mint, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text("›", color = Teal, fontSize = 26.sp, modifier = Modifier.graphicsLayer { rotationZ = arrow })
         }
         AnimatedVisibility(open, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Column(Modifier.padding(start = 8.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
+            Column(Modifier.padding(start = 6.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
         }
     }
 }
@@ -444,8 +454,8 @@ private fun Module(code: String, title: String, open: Boolean, onToggle: () -> U
 @Composable
 private fun Card(content: @Composable () -> Unit) {
     val eng = LocalEng.current
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).border(1.dp, eng.border, RoundedCornerShape(4.dp))
-        .background(CardColor).padding(14.dp),
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, eng.border, RoundedCornerShape(12.dp))
+        .background(eng.raised).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) { content() }
 }
 
