@@ -205,14 +205,25 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def local_ip() -> str:
+    """La dirección del PC en el Wi-Fi de casa (la que usa el celular)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
+        ip = s.getsockname()[0]
+        if not ip.startswith("127."):
+            return ip
     except OSError:
-        return "127.0.0.1"
+        pass
     finally:
         s.close()
+    # Sin internet: se busca entre las direcciones del PC la de la red local
+    try:
+        ips = {a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)}
+    except OSError:
+        ips = set()
+    home = sorted((i for i in ips if is_home_network(i) and not i.startswith(("127.", "169.254."))),
+                  key=lambda i: (not i.startswith("192.168."), i))
+    return home[0] if home else "127.0.0.1"
 
 
 def pair_link(ip: str) -> str:
@@ -247,7 +258,7 @@ def window(server: ThreadingHTTPServer, ip: str) -> None:
              font=("Segoe UI", 9), fg=MUTED, bg=PANEL, wraplength=380).pack(pady=(0, 12))
 
     def paint_pairing():
-        info.config(text=f"Dirección: {ip}:{PORT}")
+        info.config(text=f"Dirección: {ip}:{PORT}" if not ip.startswith("127.") else "Sin Wi-Fi: conecta el PC a tu red")
         try:
             import qrcode  # pip install qrcode
             from PIL import ImageTk
@@ -260,6 +271,17 @@ def window(server: ThreadingHTTPServer, ip: str) -> None:
             qr_label.config(text=f"Clave:\n{TOKEN}", font=("Consolas", 10), fg=GOLD, wraplength=380)
 
     paint_pairing()
+
+    def watch_ip():
+        """Si cambias de Wi-Fi o el PC se conecta tarde, el QR se actualiza solo."""
+        nonlocal ip
+        now = local_ip()
+        if now != ip:
+            ip = now
+            paint_pairing()
+        root.after(10_000, watch_ip)
+
+    root.after(10_000, watch_ip)
 
     btns = tk.Frame(root, bg=INK)
     btns.pack()
