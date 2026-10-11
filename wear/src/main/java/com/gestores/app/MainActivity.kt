@@ -48,10 +48,10 @@ import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
-/* Paleta del logo: cámbiala aquí */
-private val Teal = Color(0xFF26D0CE)
-private val Gold = Color(0xFFFFD166)
-private val Deep = Color(0xFF0B3F50)
+/* Paleta "reloj clásico de lujo" (igual que en el celular): oro, oro claro y negro cálido */
+private val Teal = Color(0xFFD4AF37)   // oro: acción principal
+private val Gold = Color(0xFFF3D27A)   // oro claro: avisos
+private val Deep = Color(0xFF17140F)   // negro cálido: tarjetas
 
 class MainActivity : ComponentActivity() {
     private val notifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         setContent {
-            MaterialTheme(colors = Colors(primary = Teal, onPrimary = Color.Black, secondary = Gold, surface = Deep)) {
+            MaterialTheme(colors = Colors(primary = Teal, onPrimary = Color(0xFF1A1405), secondary = Gold, surface = Deep, background = Color(0xFF0B0A08), onSurface = Color(0xFFF3EBD8)), typography = androidx.wear.compose.material.Typography(defaultFontFamily = androidx.compose.ui.text.font.FontFamily.Serif)) {
                 WatchApp()
             }
         }
