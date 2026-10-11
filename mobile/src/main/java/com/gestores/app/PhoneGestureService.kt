@@ -238,8 +238,20 @@ class PhoneGestureService : Service(), SensorEventListener {
     }
 
     private fun onGesture(id: String, confidence: Float?) {
-        vibrate(longArrayOf(0, 60))
+        vibrate(pattern(id))
         scope.launch { execute(this@PhoneGestureService, id, confidence) }
+    }
+
+    /** Cada gesto vibra distinto (1, 2 o 3 toques, cortos o largos). */
+    private fun pattern(id: String): LongArray = when (id) {
+        "alzar" -> longArrayOf(0, 60)
+        "bajar" -> longArrayOf(0, 160)
+        "girar" -> longArrayOf(0, 50, 70, 50)
+        "doble_giro" -> longArrayOf(0, 50, 70, 50, 70, 50)
+        "sacudir" -> longArrayOf(0, 200, 80, 60)
+        "doble_golpe" -> longArrayOf(0, 120, 80, 120)
+        "toques" -> longArrayOf(0, 40, 50, 40, 50, 40, 50, 40)
+        else -> longArrayOf(0, 60, 60, 200)   // dibujos y gestos IA
     }
 
     private fun vibrate(pattern: LongArray) {
