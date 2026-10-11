@@ -69,21 +69,30 @@ class MotionSegmenter(private val onSegment: (List<Sample>) -> Unit) {
     }
 }
 
-/** Reconoce los 5 gestos básicos con reglas físicas (picos de aceleración, giro e inversiones). */
+/** Reconoce los gestos básicos con reglas físicas (picos de aceleración, giro e inversiones). */
 object BasicClassifier {
     fun classify(s: List<Sample>, sensitivity: Float): String? {
         val k = sensitivity
+        // Umbral de cada gesto = fuerza base × tu calibración ÷ sensibilidad
+        fun t(id: String, base: Float) = base * Calibration.factor(id) / k
         val maxUp = s.maxOf { abs(it.up) }
         // Hacia dónde EMPIEZA el movimiento vertical: arriba = alzar, abajo = bajar
         val firstUp = s.firstOrNull { abs(it.up) > 6f / k }?.up ?: 0f
         val gyroPeak = s.maxOf { it.gyro }
         val dur = s.last().t
 
-        // picos fuertes separados (golpes)
+        // picos fuertes separados (golpes o toques en la mesa)
+        val peakThr = minOf(t("doble_golpe", 15f), t("toques", 15f))
         var peaks = 0; var armed = true; var lastPeak = -1000L
         for (p in s) {
-            if (armed && p.mag > 15f / k && p.t - lastPeak > 80) { peaks++; armed = false; lastPeak = p.t }
+            if (armed && p.mag > peakThr && p.t - lastPeak > 80) { peaks++; armed = false; lastPeak = p.t }
             if (p.mag < 7f) armed = true
+        }
+        // giros separados (doble giro de muñeca)
+        var gyroPeaks = 0; var gArmed = true
+        for (p in s) {
+            if (gArmed && p.gyro > t("doble_giro", 7f)) { gyroPeaks++; gArmed = false }
+            if (p.gyro < 2.5f) gArmed = true
         }
         // inversiones de dirección en el eje dominante (sacudidas)
         val ex = s.sumOf { (it.x * it.x).toDouble() }; val ey = s.sumOf { (it.y * it.y).toDouble() }; val ez = s.sumOf { (it.z * it.z).toDouble() }
@@ -91,18 +100,64 @@ object BasicClassifier {
         var reversals = 0; var sign = 0
         for (p in s) {
             val v = axis(p)
-            if (abs(v) > 7f / k) { val sg = if (v > 0) 1 else -1; if (sign != 0 && sg != sign) reversals++; sign = sg }
+            if (abs(v) > t("sacudir", 7f)) { val sg = if (v > 0) 1 else -1; if (sign != 0 && sg != sign) reversals++; sign = sg }
         }
 
         return when {
+            peaks >= 3 && dur < 1500 -> "toques"
             peaks >= 2 && dur < 900 -> "doble_golpe"
             reversals >= 4 -> "sacudir"
-            gyroPeak > 7f / k && maxUp < 8f / k -> "girar"
-            maxUp > 9f / k && firstUp > 0f -> "alzar"
-            maxUp > 9f / k && firstUp < 0f -> "bajar"
+            gyroPeaks >= 2 && maxUp < 8f / k -> "doble_giro"
+            gyroPeak > t("girar", 7f) && maxUp < 8f / k -> "girar"
+            maxUp > t("alzar", 9f) && firstUp > 0f -> "alzar"
+            maxUp > t("bajar", 9f) && firstUp < 0f -> "bajar"
             else -> null
         }
     }
+}
+
+/**
+ * CALIBRACIÓN GUIADA
+ * Haces cada gesto 3 veces; se mide tu fuerza típica y el umbral se ajusta
+ * para que el gesto se reconozca con el 65 % de esa fuerza (ni muy fácil ni muy difícil).
+ */
+object Calibration {
+    private val base = mapOf("alzar" to 9f, "bajar" to 9f, "girar" to 7f, "doble_giro" to 7f, "sacudir" to 7f, "doble_golpe" to 15f, "toques" to 15f)
+    val calibrable get() = base.keys.toList()
+    private val factors = mutableMapOf<String, Float>()
+    private var ctx: Context? = null
+    private val ser = MapSerializer(String.serializer(), Float.serializer())
+
+    fun init(c: Context) {
+        if (ctx != null) return
+        ctx = c.applicationContext
+        c.prefs().getString("calibration", null)?.let { runCatching { factors.putAll(json.decodeFromString(ser, it)) } }
+    }
+
+    fun factor(id: String) = factors[id] ?: 1f
+    fun all(): Map<String, Float> = factors.toMap()
+    fun setAll(m: Map<String, Float>) { factors.clear(); factors.putAll(m); save() }
+    fun reset(id: String) { factors.remove(id); save() }
+
+    /** La "fuerza" de un movimiento según el tipo de gesto. */
+    fun metric(id: String, s: List<Sample>): Float = when (id) {
+        "alzar", "bajar" -> s.maxOf { abs(it.up) }
+        "girar", "doble_giro" -> s.maxOf { it.gyro }
+        "sacudir" -> s.maxOf { maxOf(abs(it.x), abs(it.y), abs(it.z)) }
+        else -> s.maxOf { it.mag }
+    }
+
+    /** Guarda la calibración con tus muestras y devuelve el nuevo factor (1 = normal). */
+    fun calibrate(id: String, samples: List<List<Sample>>): Float {
+        val b = base[id] ?: return 1f
+        val avg = samples.map { metric(id, it) }.average().toFloat()
+        val f = (avg * 0.65f / b).coerceIn(0.5f, 1.8f)
+        factors[id] = f
+        save()
+        return f
+    }
+
+    private fun save() { ctx?.prefs()?.edit()?.putString("calibration", json.encodeToString(ser, factors))?.apply() }
 }
 
 /**
@@ -118,9 +173,15 @@ object Learner {
     private val templates = mutableMapOf<String, MutableList<List<FloatArray>>>()
     private val ser = MapSerializer(String.serializer(), ListSerializer(ListSerializer(ListSerializer(Float.serializer()))))
 
+    private const val MAX_SAMPLES = 12
+    private val names = mutableMapOf<String, String>()
+    private val nameSer = MapSerializer(String.serializer(), String.serializer())
+
     fun init(ctx: Context) {
+        Calibration.init(ctx)
         if (::appCtx.isInitialized) return
         appCtx = ctx.applicationContext
+        appCtx.prefs().getString("ai_names", null)?.let { runCatching { names.putAll(json.decodeFromString(nameSer, it)) } }
         appCtx.prefs().getString("templates", null)?.let { s ->
             runCatching { json.decodeFromString(ser, s) }.getOrNull()?.forEach { (id, list) ->
                 templates[id] = list.map { seq -> seq.map { it.toFloatArray() } }.toMutableList()
@@ -131,8 +192,39 @@ object Learner {
     fun count(id: String) = templates[id]?.size ?: 0
 
     fun add(id: String, seg: List<Sample>) {
-        templates.getOrPut(id) { mutableListOf() } += resample(seg)
+        val list = templates.getOrPut(id) { mutableListOf() }
+        list += resample(seg)
+        while (list.size > MAX_SAMPLES) list.removeAt(0)   // se queda con las más recientes
         save()
+    }
+
+    /** Aprende mientras usas: un gesto reconocido con buena confianza se guarda como nuevo ejemplo. */
+    fun learnFromUse(id: String, seg: List<Sample>, confidence: Float) {
+        if (confidence >= 0.7f && count(id) in 3 until MAX_SAMPLES) add(id, seg)
+    }
+
+    fun nameOf(id: String): String? = names[id]
+    fun rename(id: String, name: String) {
+        if (name.isBlank()) names.remove(id) else names[id] = name.trim().take(24)
+        appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
+    }
+
+    /** Exporta los gestos aprendidos, sus nombres y la calibración (para guardarlos o pasarlos a otro celular). */
+    fun exportJson(): String {
+        val plain = templates.mapValues { (_, list) -> list.map { seq -> seq.map { it.toList() } } }
+        return json.encodeToString(Backup.serializer(), Backup(1, plain, names.toMap(), Calibration.all()))
+    }
+
+    /** Importa una copia hecha con exportJson. Devuelve cuántos gestos se cargaron. */
+    fun importJson(text: String): Int {
+        val b = json.decodeFromString(Backup.serializer(), text)
+        templates.clear()
+        b.templates.forEach { (id, list) -> templates[id] = list.map { seq -> seq.map { it.toFloatArray() } }.toMutableList() }
+        names.clear(); names.putAll(b.names)
+        appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
+        Calibration.setAll(b.calibration)
+        save()
+        return templates.size
     }
 
     fun clear(id: String) { templates.remove(id); save() }
@@ -182,3 +274,12 @@ object Learner {
         appCtx.prefs().edit().putString("templates", json.encodeToString(ser, plain)).apply()
     }
 }
+
+/** Copia de seguridad de la IA de gestos. */
+@kotlinx.serialization.Serializable
+data class Backup(
+    val version: Int = 1,
+    val templates: Map<String, List<List<List<Float>>>> = emptyMap(),
+    val names: Map<String, String> = emptyMap(),
+    val calibration: Map<String, Float> = emptyMap(),
+)
