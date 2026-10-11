@@ -1,11 +1,14 @@
 package com.gestores.app
 
-import android.Manifest
 import android.app.Activity
 import android.graphics.Paint
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.graphics.Typeface
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -80,23 +83,26 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /* =========================================================
-   VISTA DE RELOJ (pantalla de inicio)
-   5 esferas de lujo, complicaciones, animación al detectar un gesto
-   y modo siempre encendido. Desliza la esfera para cambiarla; tócala para abrir la app;
-   mantenla presionada para el modo siempre encendido.
+   EL RELOJ (única pantalla de la app)
+   El celular simula un smartwatch: la esfera siempre está a la vista y
+   las apps se abren DENTRO del reloj.
+   • Corona dorada: abre las apps / vuelve atrás.
+   • Deslizar a la derecha: volver.   • Deslizar en la esfera: cambiar de esfera.
+   • Mantener presionada la esfera: siempre encendido.
    ========================================================= */
 private val FACES = listOf("Clásica romana", "Cronógrafo", "Minimalista", "Digital de lujo", "Deportiva")
 private val ROMAN = listOf("XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI")
 
 @Composable
-fun WatchHome(onOpen: () -> Unit) {
+fun WatchHome(mode: String, onMode: (String) -> Unit) {
     val ctx = LocalContext.current
     val eng = LocalEng.current
     val prefs = remember { ctx.prefs() }
     var face by remember { mutableIntStateOf(prefs.getInt("face", 0)) }
-    var aod by remember { mutableStateOf(prefs.getBoolean("aod", false)) }
+    val aod by WatchState.aod.collectAsState()
     val running by PhoneBus.running.collectAsState()
     val comp = rememberComplications()
+    var screen by rememberSaveable { mutableStateOf("face") }   // face | apps | id de una app
 
     // Hora fluida (60 fps) o, en siempre encendido, una vez por segundo para ahorrar batería
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -106,102 +112,210 @@ fun WatchHome(onOpen: () -> Unit) {
         }
     }
 
-    // Siempre encendido: la pantalla no se apaga y baja el brillo
+    // Siempre encendido: la pantalla no se apaga y baja el brillo (solo en la esfera)
+    val dimmed = aod && screen == "face"
     val view = LocalView.current
-    DisposableEffect(aod) {
-        view.keepScreenOn = aod
+    DisposableEffect(dimmed) {
+        view.keepScreenOn = dimmed
         val w = (ctx as? Activity)?.window
-        w?.attributes = w?.attributes?.apply { screenBrightness = if (aod) 0.04f else -1f }
+        w?.attributes = w?.attributes?.apply { screenBrightness = if (dimmed) 0.04f else -1f }
         onDispose { view.keepScreenOn = false; w?.attributes = w?.attributes?.apply { screenBrightness = -1f } }
     }
 
-    val perms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     fun setFace(i: Int) { face = (i + FACES.size) % FACES.size; prefs.edit().putInt("face", face).apply() }
+    fun back() { screen = if (screen == "face" || screen == "apps") "face" else "apps" }
 
-    // Fondo: negro profundo (o marfil) con un brillo dorado suave
+    // Los gestos pueden abrir apps y cambiar la esfera
+    val request by WatchState.openRequest.collectAsState()
+    LaunchedEffect(request) { request?.let { screen = it; WatchState.openRequest.value = null } }
+    val faceTick by WatchState.nextFace.collectAsState()
+    var lastTick by remember { mutableIntStateOf(faceTick) }
+    LaunchedEffect(faceTick) { if (faceTick != lastTick) { lastTick = faceTick; screen = "face"; setFace(face + 1) } }
+
+    BackHandler(enabled = screen != "face") { back() }
+
     Box(
-        Modifier.fillMaxSize().background(if (aod) Color.Black else eng.bg)
-            .background(Brush.radialGradient(listOf(eng.primary.copy(alpha = if (aod) 0f else 0.10f), Color.Transparent))),
+        Modifier.fillMaxSize().background(if (dimmed) Color.Black else eng.bg)
+            .background(Brush.radialGradient(listOf(eng.primary.copy(alpha = if (dimmed) 0f else 0.10f), Color.Transparent))),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Strap(top = true, dim = aod)
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val dial = minOf(maxWidth - 64.dp, maxHeight * 0.52f, 360.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Strap(top = true, dim = dimmed, width = dial * 0.52f)
 
-            Box(contentAlignment = Alignment.Center) {
-                // Corona dorada a la derecha
-                Box(Modifier.offset(x = 152.dp).width(16.dp).height(40.dp).clip(RoundedCornerShape(4.dp))
-                    .background(Brush.verticalGradient(listOf(eng.goldLight, eng.primary, eng.border))))
-                Box(
-                    Modifier.size(296.dp).clip(CircleShape)
-                        .background(Brush.sweepGradient(listOf(eng.goldLight, eng.border, eng.primary, eng.goldLight)))   // bisel de oro
-                        .padding(9.dp).clip(CircleShape).background(if (aod) Color.Black else if (eng.isDark) Color(0xFF0E0C09) else Color(0xFFFBF7EC))
-                        .pointerInput(Unit) {
-                            var drag = 0f
-                            detectHorizontalDragGestures(onDragEnd = {
-                                if (drag < -80) setFace(face + 1) else if (drag > 80) setFace(face - 1)
-                                drag = 0f
-                            }) { _, d -> drag += d }
-                        }
-                        .pointerInput(Unit) { detectTapGestures(onTap = { onOpen() }, onLongPress = { aod = !aod; prefs.edit().putBoolean("aod", aod).apply() }) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Cambio de esfera: la nueva aparece creciendo y la anterior se desvanece
-                    AnimatedContent(face, transitionSpec = {
-                        (fadeIn(tween(450)) + scaleIn(tween(450, easing = FastOutSlowInEasing), initialScale = 0.85f)) togetherWith
-                            (fadeOut(tween(250)) + scaleOut(tween(250), targetScale = 1.1f))
-                    }, label = "esfera") { f ->
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            when (f) {
-                                0 -> RomanFace(now, aod)
-                                1 -> ChronoFace(now, aod, comp)
-                                2 -> MinimalFace(now, aod)
-                                3 -> DigitalFace(now, aod, comp, running)
-                                else -> SportFace(now, aod)
+                Box(contentAlignment = Alignment.Center) {
+                    Crown(dial, screen) { screen = if (screen == "face") "apps" else if (screen == "apps") "face" else "apps" }
+                    Box(
+                        Modifier.size(dial).clip(CircleShape)
+                            .background(Brush.sweepGradient(listOf(eng.goldLight, eng.border, eng.primary, eng.goldLight)))   // bisel de oro
+                            .padding(9.dp).clip(CircleShape).background(if (dimmed) Color.Black else if (eng.isDark) Color(0xFF0E0C09) else Color(0xFFFBF7EC))
+                            .pointerInput(screen) {
+                                var drag = 0f
+                                detectHorizontalDragGestures(onDragEnd = {
+                                    if (screen == "face") { if (drag < -80) setFace(face + 1) else if (drag > 80) setFace(face - 1) }
+                                    else if (drag > 90) back()
+                                    drag = 0f
+                                }) { _, d -> drag += d }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        // Entrar a una app: crece desde el centro, como en un reloj de verdad
+                        AnimatedContent(screen, transitionSpec = {
+                            val deeper = targetState != "face" && (initialState == "face" || targetState != "apps")
+                            if (deeper) (fadeIn(tween(350)) + scaleIn(tween(380, easing = FastOutSlowInEasing), initialScale = 0.6f)) togetherWith
+                                (fadeOut(tween(200)) + scaleOut(tween(250), targetScale = 1.25f))
+                            else (fadeIn(tween(350)) + scaleIn(tween(380), initialScale = 1.25f)) togetherWith
+                                (fadeOut(tween(200)) + scaleOut(tween(250), targetScale = 0.6f))
+                        }, label = "pantalla") { s ->
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                when (s) {
+                                    "face" -> FaceView(face, now, aod, comp, running,
+                                        onTap = { screen = "apps" },
+                                        onLong = { WatchState.setAod(ctx, !aod) })
+                                    "apps" -> AppGrid { screen = it }
+                                    else -> WatchAppScreen(s, mode, onMode)
+                                }
                             }
-                            if (f != 1 && f != 3 && !aod) ComplicationRow(comp, Modifier.align(Alignment.BottomCenter).padding(bottom = 46.dp))
+                        }
+                        GestureBurst()
+                        AskOverlay()
+                    }
+                }
+
+                Strap(top = false, dim = dimmed, width = dial * 0.52f)
+                Spacer(Modifier.height(12.dp))
+
+                // Debajo del reloj: nombre de lo que se ve
+                if (screen == "face") {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("‹", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { setFace(face - 1) }.padding(horizontal = 8.dp))
+                        Text(FACES[face], color = eng.text, fontFamily = FontFamily.Serif, fontSize = 16.sp)
+                        Text("›", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { setFace(face + 1) }.padding(horizontal = 8.dp))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        repeat(FACES.size) { i -> Box(Modifier.size(if (i == face) 9.dp else 6.dp).clip(CircleShape).background(if (i == face) eng.primary else eng.border)) }
+                    }
+                } else {
+                    val app = WatchApps.get(screen)
+                    Text(if (app != null) "${app.emoji} ${app.name}" else "Apps", color = eng.text, fontFamily = FontFamily.Serif, fontSize = 16.sp)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    when {
+                        screen == "face" -> "Toca la corona o la esfera para ver las apps"
+                        else -> "Corona o deslizar a la derecha: volver"
+                    } + if (running) "   ·   ● gestos" else "",
+                    color = eng.muted, fontSize = 12.sp,
+                )
+            }
+        }
+    }
+}
+
+/* ---------------- Corona dorada (botón del reloj) ---------------- */
+@Composable
+private fun Crown(dial: androidx.compose.ui.unit.Dp, screen: String, onClick: () -> Unit) {
+    val eng = LocalEng.current
+    val turn = remember { Animatable(0f) }
+    LaunchedEffect(screen) { turn.animateTo(turn.value + 90f, tween(400)) }   // gira al cambiar de pantalla
+    Box(
+        Modifier.offset(x = dial / 2 + 4.dp).width(22.dp).height(52.dp).clip(RoundedCornerShape(6.dp))
+            .background(Brush.verticalGradient(listOf(eng.goldLight, eng.primary, eng.border)))
+            .clickable(onClick = onClick),
+    ) {
+        Canvas(Modifier.fillMaxSize()) {   // estrías de la corona que se mueven al girar
+            val shift = (turn.value % 90f) / 90f * 8f
+            var y = shift
+            while (y < size.height) { drawLine(eng.border, Offset(3f, y), Offset(size.width - 3f, y), 2f); y += 8f }
+        }
+    }
+}
+
+/* ---------------- Esfera ---------------- */
+@Composable
+private fun FaceView(face: Int, now: Long, aod: Boolean, comp: Complications, running: Boolean, onTap: () -> Unit, onLong: () -> Unit) {
+    Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures(onTap = { onTap() }, onLongPress = { onLong() }) }, contentAlignment = Alignment.Center) {
+        AnimatedContent(face, transitionSpec = {
+            (fadeIn(tween(450)) + scaleIn(tween(450, easing = FastOutSlowInEasing), initialScale = 0.85f)) togetherWith
+                (fadeOut(tween(250)) + scaleOut(tween(250), targetScale = 1.1f))
+        }, label = "esfera") { f ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                when (f) {
+                    0 -> RomanFace(now, aod)
+                    1 -> ChronoFace(now, aod, comp)
+                    2 -> MinimalFace(now, aod)
+                    3 -> DigitalFace(now, aod, comp, running)
+                    else -> SportFace(now, aod)
+                }
+                if (f != 1 && f != 3 && !aod) ComplicationRow(comp, Modifier.align(Alignment.BottomCenter).padding(bottom = 46.dp))
+            }
+        }
+    }
+}
+
+/* ---------------- Cuadrícula de apps dentro del reloj ---------------- */
+@Composable
+private fun AppGrid(onOpen: (String) -> Unit) {
+    val eng = LocalEng.current
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 34.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        WatchApps.all.groupBy { it.group }.forEach { (group, apps) ->
+            Text(group.uppercase(), color = eng.primary, fontFamily = FontFamily.Serif, fontSize = 11.sp, letterSpacing = 1.5.sp)
+            apps.chunked(4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEachIndexed { i, a ->
+                        var shown by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) { delay(40L * i); shown = true }
+                        val k by animateFloatAsState(if (shown) 1f else 0.4f, tween(300), label = "app")
+                        Column(
+                            Modifier.width(54.dp).graphicsLayer { scaleX = k; scaleY = k; alpha = k }.clickable { onOpen(a.id) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(Modifier.size(44.dp).clip(CircleShape).background(eng.raised).border(1.dp, eng.goldBrush(), CircleShape),
+                                contentAlignment = Alignment.Center) { Text(a.emoji, fontSize = 20.sp) }
+                            Text(a.name, color = eng.text, fontSize = 9.sp, maxLines = 1)
                         }
                     }
-                    GestureBurst()
                 }
             }
+        }
+    }
+}
 
-            Strap(top = false, dim = aod)
-            Spacer(Modifier.height(14.dp))
-
-            // Controles debajo del reloj
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("‹", color = eng.primary, fontSize = 30.sp, modifier = Modifier.clickable { setFace(face - 1) }.padding(horizontal = 8.dp))
-                Text(FACES[face], color = eng.text, fontFamily = FontFamily.Serif, fontSize = 16.sp)
-                Text("›", color = eng.primary, fontSize = 30.sp, modifier = Modifier.clickable { setFace(face + 1) }.padding(horizontal = 8.dp))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(FACES.size) { i -> Box(Modifier.size(if (i == face) 9.dp else 6.dp).clip(CircleShape).background(if (i == face) eng.primary else eng.border)) }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                (if (running) "● Detectando gestos" else "○ Detección apagada") + "   ·   " + (if (aod) "🌙 Siempre encendido" else "Mantén presionado: siempre encendido"),
-                color = if (running) eng.primary else eng.muted, fontSize = 12.sp,
-            )
-            if (!ctx.has(Manifest.permission.ACTIVITY_RECOGNITION) || !ctx.has(Manifest.permission.ACCESS_COARSE_LOCATION)) Text(
-                "Toca aquí para ver pasos y clima en la esfera",
-                color = eng.primary, fontSize = 12.sp,
-                modifier = Modifier.padding(top = 6.dp).clickable {
-                    perms.launch(arrayOf(Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                },
-            )
-            Spacer(Modifier.height(4.dp))
-            Text("Toca la esfera para abrir Gestores", color = eng.muted, fontSize = 12.sp)
+/* ---------------- "¿Fue este gesto?" dentro del reloj ---------------- */
+@Composable
+private fun AskOverlay() {
+    val ctx = LocalContext.current
+    val eng = LocalEng.current
+    val ask by WatchState.ask.collectAsState()
+    val (id, conf) = ask ?: return
+    LaunchedEffect(ask) { delay(12_000); if (WatchState.ask.value == ask) PhoneGestureService.answer(ctx, false) }
+    Column(
+        Modifier.clip(RoundedCornerShape(20.dp)).background(eng.bg.copy(alpha = 0.94f)).border(1.dp, eng.goldBrush(), RoundedCornerShape(20.dp))
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("¿Fue ${Gestures.label(id)}?", color = eng.primary, fontFamily = FontFamily.Serif, fontSize = 15.sp)
+        Text("La IA no está segura (${(conf * 100).toInt()} %)", color = eng.muted, fontSize = 11.sp)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Pill("✗ No") { PhoneGestureService.answer(ctx, false) }
+            Pill("✓ Sí", filled = true) { PhoneGestureService.answer(ctx, true) }
         }
     }
 }
 
 /* ---------------- Correa de cuero con costuras doradas ---------------- */
 @Composable
-private fun Strap(top: Boolean, dim: Boolean) {
+private fun Strap(top: Boolean, dim: Boolean, width: androidx.compose.ui.unit.Dp) {
     val eng = LocalEng.current
     val leather = if (eng.isDark) listOf(Color(0xFF2A1F14), Color(0xFF1A130C)) else listOf(Color(0xFF6B4A2B), Color(0xFF4E351E))
     Box(
-        Modifier.width(150.dp).height(96.dp)
+        Modifier.width(width).height(80.dp)
             .clip(if (top) RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp) else RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
             .background(Brush.verticalGradient(if (top) leather else leather.reversed()))
             .graphicsLayer { alpha = if (dim) 0.25f else 1f },
