@@ -26,13 +26,21 @@ object Gestures {
         GestureDef("girar", "🔄", "Girar muñeca", "Gira la muñeca rápido, como abriendo una perilla"),
         GestureDef("sacudir", "👋", "Sacudir", "Sacude la mano varias veces"),
         GestureDef("doble_golpe", "✊", "Doble golpe", "Da dos golpes secos con la mano (por ejemplo, en la mesa)"),
+        GestureDef("doble_giro", "🔁", "Doble giro", "Gira la muñeca dos veces seguidas, rápido"),
+        GestureDef("toques", "🫳", "Toques en la mesa", "Da 3 toquecitos seguidos en la mesa con el celular o el reloj"),
     )
-    val ai = listOf(
-        GestureDef("ia_1", "🧠", "Gesto IA 1", "Un movimiento tuyo que la IA aprende"),
-        GestureDef("ia_2", "🧠", "Gesto IA 2", "Un movimiento tuyo que la IA aprende"),
-        GestureDef("ia_3", "🧠", "Gesto IA 3", "Un movimiento tuyo que la IA aprende"),
+    /** Dibujar en el aire: la IA los aprende con tu forma de dibujar (5 ejemplos cada uno). */
+    val shapes = listOf(
+        GestureDef("dib_circulo", "⭕", "Dibujar círculo", "Dibuja un círculo en el aire con la mano"),
+        GestureDef("dib_v", "✔️", "Dibujar V", "Dibuja una V (como un chulo) en el aire"),
+        GestureDef("dib_z", "⚡", "Dibujar Z", "Dibuja una Z en el aire"),
     )
-    val all = builtIn + ai
+    /** 8 gestos propios; el nombre lo pones tú. */
+    val ai get() = (1..8).map { n ->
+        val id = "ia_$n"
+        GestureDef(id, "🧠", Learner.nameOf(id) ?: "Gesto IA $n", "Un movimiento tuyo que la IA aprende")
+    }
+    val all get() = builtIn + shapes + ai
     fun get(id: String) = (all + Triggers.all).firstOrNull { it.id == id }
     fun label(id: String) = get(id)?.let { "${it.emoji} ${it.name}" } ?: id
 }
