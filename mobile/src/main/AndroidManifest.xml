@@ -1,35 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Solo para el clima (Open-Meteo); nada más sale del celular -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Permite abrir apps cuando el gesto llega con la pantalla apagada o en otra app -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Complicaciones de la esfera: pasos y clima (ubicación aproximada) -->
+    <!-- Apps del reloj: pasos y clima (ubicación aproximada) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Llamar a un favorito con un gesto y activar "No molestar" -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-
-    <!-- Para listar las apps instaladas y poder elegir cuál abrir -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
-    </queries>
+    <!-- Alarmas y temporizador que suenan a la hora exacta -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Gestores"
-        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Gestores">
 
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
@@ -39,22 +29,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Detecta gestos con el celular en la muñeca -->
+        <!-- Detecta gestos con los sensores del celular -->
         <service android:name=".PhoneGestureService" android:exported="false" />
-        <receiver android:name=".ConfirmReceiver" android:exported="false" />
-
-        <!-- Botones de música de cualquier reloj (Honor, Xiaomi, Amazfit…) -->
-        <service
-            android:name=".UniversalService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
-
-        <!-- Recibe los gestos de un reloj Wear OS y ejecuta la acción -->
-        <service android:name=".PhoneListenerService" android:exported="true">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/gestores" />
-            </intent-filter>
-        </service>
+        <!-- Alarmas, temporizador y recordatorio de agua -->
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
     </application>
 </manifest>
