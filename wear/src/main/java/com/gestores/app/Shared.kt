@@ -100,6 +100,16 @@ object PcActions {
         "key:mute" to "PC: silenciar",
         "open:https://guardian-fauna.netlify.app" to "PC: abrir Guardián",
         "lock" to "PC: bloquear pantalla",
+        "screenshot" to "PC: captura de pantalla",
+        "alttab" to "PC: cambiar de ventana (Alt + Tab)",
+        "desktop" to "PC: mostrar escritorio",
+        "folder:descargas" to "PC: abrir Descargas",
+        "folder:documentos" to "PC: abrir Documentos",
+        "bright_up" to "PC: subir brillo",
+        "bright_down" to "PC: bajar brillo",
+        "sleep" to "PC: suspender",
+        "shutdown" to "PC: apagar (en 1 minuto)",
+        "cancel_shutdown" to "PC: cancelar apagado",
     )
 }
 
