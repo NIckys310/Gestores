@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -34,6 +35,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -348,47 +351,157 @@ private fun WristCard(onTestWatch: () -> Unit) {
 }
 
 /* ---------------- Entrenar la IA ---------------- */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TrainCard() {
     val ctx = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
+    var calibrating by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf("") }
     val training by PhoneBus.trainingTarget.collectAsState()
     LaunchedEffect(training) { refresh++ }
-    Card {
-        Text("🧠 Enseñarle gestos a la IA", fontWeight = FontWeight.Bold, color = Mint, style = MaterialTheme.typography.titleMedium)
-        Text("Inventa un movimiento, hazlo 5 veces y la IA lo aprende. Luego asígnale una acción abajo.",
-            color = Muted, style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Gestures.ai.forEach { g ->
-                val n = remember(refresh) { Learner.count(g.id) }
-                OutlinedButton(onClick = {
-                    PhoneBus.trainCount.value = Learner.count(g.id)
-                    PhoneBus.trainingTarget.value = g.id
-                    if (!PhoneBus.running.value) PhoneGestureService.start(ctx)
-                }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
-                    Text("${g.name.removePrefix("Gesto ")}\n${if (n == 0) "nuevo" else "$n ✓"}", style = MaterialTheme.typography.bodySmall)
-                }
-            }
+
+    // Exportar / importar los gestos como archivo (Drive, WhatsApp, otro celular…)
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        msg = runCatching {
+            ctx.contentResolver.openOutputStream(uri)!!.use { it.write(Learner.exportJson().toByteArray()) }
+            "✓ Gestos exportados"
+        }.getOrElse { "⚠ No se pudo exportar" }
+    }
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        msg = runCatching {
+            val text = ctx.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+            "✓ ${Learner.importJson(text)} gestos importados"
+        }.getOrElse { "⚠ Ese archivo no es una copia de Gestores" }
+        refresh++
+    }
+
+    fun train(id: String) {
+        PhoneBus.trainCount.value = Learner.count(id)
+        PhoneBus.trainingTarget.value = id
+        if (!PhoneBus.running.value) PhoneGestureService.start(ctx)
+    }
+
+    @Composable
+    fun GestureButton(g: GestureDef) {
+        val n = remember(refresh) { Learner.count(g.id) }
+        OutlinedButton(onClick = { train(g.id) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
+            Text("${g.emoji} ${g.name.removePrefix("Gesto ").removePrefix("Dibujar ")}\n${if (n == 0) "nuevo" else "$n ✓"}",
+                style = MaterialTheme.typography.bodySmall)
         }
     }
+
+    Card {
+        Text("🧠 Enseñarle gestos a la IA", fontWeight = FontWeight.Bold, color = Mint, style = MaterialTheme.typography.titleMedium)
+        Text("Inventa un movimiento, hazlo 5 veces y la IA lo aprende. Mientras lo usas sigue aprendiendo, " +
+             "y si no está segura te pregunta “¿Fue este gesto?”.", color = Muted, style = MaterialTheme.typography.bodySmall)
+        Text("Dibujar en el aire", color = Gold, style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Gestures.shapes.forEach { GestureButton(it) }
+        }
+        Text("Tus 8 gestos (toca para entrenar y ponerle nombre)", color = Gold, style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Gestures.ai.forEach { GestureButton(it) }
+        }
+        HorizontalDivider(color = Muted.copy(alpha = 0.3f))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { calibrating = true }) { Text("🎯 Calibrar a mi fuerza") }
+            OutlinedButton(onClick = { exporter.launch("gestores-gestos.json") }) { Text("⤴ Exportar") }
+            OutlinedButton(onClick = { importer.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text("⤵ Importar") }
+        }
+        if (msg.isNotBlank()) Text(msg, color = Teal, style = MaterialTheme.typography.bodySmall)
+    }
+    if (calibrating) CalibrationDialog { calibrating = false }
 }
 
 @Composable
 private fun TrainingDialog(id: String) {
     val count by PhoneBus.trainCount.collectAsState()
     val result by PhoneBus.result.collectAsState()
+    val isAi = id.startsWith("ia_")
+    var name by remember(id) { mutableStateOf(Learner.nameOf(id) ?: "") }
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("🧠 ${Gestures.get(id)?.name ?: id}") },
+        title = { Text("${Gestures.get(id)?.emoji ?: "🧠"} ${Gestures.get(id)?.name ?: id}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isAi) OutlinedTextField(name, { name = it.take(24) }, label = { Text("Nombre del gesto") },
+                    placeholder = { Text("Ej.: Saludo, Puño, Ola") }, singleLine = true)
                 Text(if (count < 5) "Con el celular en la muñeca, haz tu gesto y quédate quieto un momento.\n\nMuestra ${count + 1} de 5"
-                     else "¡Listo! La IA ya aprendió este gesto.")
+                     else "¡Listo! La IA ya aprendió este gesto ($count ejemplos).")
                 if (result.isNotBlank()) Text(result, color = Gold)
             }
         },
-        confirmButton = { TextButton(onClick = { PhoneBus.trainingTarget.value = null }) { Text(if (count >= 3) "Terminar" else "Cancelar") } },
+        confirmButton = {
+            TextButton(onClick = {
+                if (isAi) Learner.rename(id, name)
+                PhoneBus.trainingTarget.value = null
+            }) { Text(if (count >= 3) "Terminar" else "Cerrar") }
+        },
         dismissButton = { TextButton(onClick = { Learner.clear(id); PhoneBus.trainCount.value = 0 }) { Text("Borrar muestras") } },
+    )
+}
+
+/** Calibración guiada: haces el gesto 3 veces y se ajusta a tu fuerza. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CalibrationDialog(onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val target by PhoneBus.calibTarget.collectAsState()
+    val count by PhoneBus.calibCount.collectAsState()
+    val factor by PhoneBus.calibFactor.collectAsState()
+    fun pick(id: String?) {
+        PhoneBus.calibSamples.clear(); PhoneBus.calibCount.value = 0; PhoneBus.calibFactor.value = null
+        PhoneBus.calibTarget.value = id
+        if (id != null && !PhoneBus.running.value) PhoneGestureService.start(ctx)
+    }
+    fun close() { pick(null); onClose() }
+    AlertDialog(
+        onDismissRequest = ::close,
+        title = { Text("🎯 Calibración guiada") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val t = target
+                if (t == null) {
+                    Text("Elige un gesto. Lo harás 3 veces con tu fuerza normal y Gestores se ajusta a ti.", color = Muted)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Calibration.calibrable.forEach { id ->
+                            val f = Calibration.factor(id)
+                            FilterChip(selected = f != 1f, onClick = { pick(id) },
+                                label = { Text(Gestures.label(id) + if (f != 1f) " ✓" else "") })
+                        }
+                    }
+                } else {
+                    Text(Gestures.label(t), color = Gold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(Gestures.get(t)?.hint ?: "", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        repeat(3) { i ->
+                            Box(Modifier.size(22.dp).clip(CircleShape)
+                                .background(if (i < count) Gold else Muted.copy(alpha = 0.25f)))
+                        }
+                    }
+                    val f = factor
+                    Text(
+                        when {
+                            f == null -> "Hazlo ahora · ${count + 1} de 3"
+                            f < 0.9f -> "✓ Listo. Lo haces suave: ahora es más fácil de reconocer."
+                            f > 1.1f -> "✓ Listo. Lo haces fuerte: ahora no se activará por accidente."
+                            else -> "✓ Listo. Tu fuerza es la normal."
+                        },
+                        color = if (f == null) MaterialTheme.colorScheme.onSurface else Teal,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (target != null) TextButton(onClick = { pick(null) }) { Text(if (factor != null) "Otro gesto" else "Atrás") }
+            else TextButton(onClick = ::close) { Text("Cerrar") }
+        },
+        dismissButton = {
+            target?.let { t -> TextButton(onClick = { Calibration.reset(t); pick(null) }) { Text("Restablecer") } }
+        },
     )
 }
 
