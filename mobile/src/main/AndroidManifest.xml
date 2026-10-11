@@ -38,6 +38,7 @@
 
         <!-- Detecta gestos con el celular en la muñeca -->
         <service android:name=".PhoneGestureService" android:exported="false" />
+        <receiver android:name=".ConfirmReceiver" android:exported="false" />
 
         <!-- Botones de música de cualquier reloj (Honor, Xiaomi, Amazfit…) -->
         <service

@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
@@ -38,6 +39,33 @@ object PhoneBus {
     val trainingTarget = MutableStateFlow<String?>(null)   // gesto IA que se está entrenando
     val trainCount = MutableStateFlow(0)
     val sensitivity = MutableStateFlow(1f)
+    /** Confianza del último gesto de la IA (0 a 1); null si fue un gesto básico. */
+    val confidence = MutableStateFlow<Float?>(null)
+    // Calibración guiada
+    val calibTarget = MutableStateFlow<String?>(null)
+    val calibCount = MutableStateFlow(0)
+    val calibFactor = MutableStateFlow<Float?>(null)
+    val calibSamples = mutableListOf<List<Sample>>()
+    /** Gesto dudoso esperando tu "Sí" o "No". */
+    @Volatile var pending: Pair<String, List<Sample>>? = null
+}
+
+/** Botones "Sí" / "No" de la notificación "¿Fue este gesto?". */
+class ConfirmReceiver : BroadcastReceiver() {
+    override fun onReceive(ctx: Context, intent: Intent) {
+        val (id, seg) = PhoneBus.pending ?: return
+        PhoneBus.pending = null
+        NotificationManagerCompat.from(ctx).cancel(PhoneGestureService.CONFIRM_ID)
+        if (intent.getBooleanExtra("yes", false)) {
+            Learner.init(ctx)
+            Learner.add(id, seg)            // la IA aprende de tu respuesta
+            val done = goAsync()
+            CoroutineScope(Dispatchers.Main).launch {
+                PhoneGestureService.execute(ctx, id, 1f)
+                done.finish()
+            }
+        } else PhoneBus.result.value = "Ignorado: no era ${Gestures.label(id)}"
+    }
 }
 
 /**
@@ -52,6 +80,41 @@ class PhoneGestureService : Service(), SensorEventListener {
         private const val ACTION_STOP = "stop"
         private const val CHANNEL_RUN = "detectando"
         private const val CHANNEL_RESULT = "resultados"   // ← este canal es el que llega al reloj
+        const val CONFIRM_ID = 77
+        /** Por debajo de esta confianza se pregunta "¿Fue este gesto?". */
+        const val MIN_CONFIDENCE = 0.55f
+
+        /** Ejecuta la acción del gesto, la guarda en el historial y avisa al reloj. */
+        suspend fun execute(ctx: Context, id: String, confidence: Float?) {
+            PhoneBus.lastGesture.value = id
+            PhoneBus.confidence.value = confidence
+            PhoneBus.gestureEvent.value = PhoneBus.gestureEvent.value + 1
+            PhoneBus.result.value = "Ejecutando…"
+            val pct = confidence?.let { " · ${(it * 100).toInt()} %" } ?: ""
+            val result = ActionRunner.runGesture(ctx, id)
+            PhoneBus.result.value = result + pct
+            EventLog.add(ctx, id, result + pct)
+            notifyWatch(ctx, Gestures.label(id), result + pct)   // aparece y vibra en el Honor
+        }
+
+        /** Pregunta en el celular y en el reloj si el gesto dudoso era el correcto. */
+        @SuppressLint("MissingPermission")
+        fun askConfirm(ctx: Context, id: String, confidence: Float) {
+            createChannels(ctx)
+            fun answer(yes: Boolean) = PendingIntent.getBroadcast(ctx, if (yes) 11 else 12,
+                Intent(ctx, ConfirmReceiver::class.java).putExtra("yes", yes), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            val n = NotificationCompat.Builder(ctx, CHANNEL_RESULT)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle("¿Fue ${Gestures.label(id)}?")
+                .setContentText("La IA no está segura (${(confidence * 100).toInt()} %). Responde y aprende de ti.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setTimeoutAfter(20_000)
+                .addAction(0, "✓ Sí", answer(true))
+                .addAction(0, "✗ No", answer(false))
+                .build()
+            runCatching { NotificationManagerCompat.from(ctx).notify(CONFIRM_ID, n) }
+        }
 
         fun start(ctx: Context) = ContextCompat.startForegroundService(ctx, Intent(ctx, PhoneGestureService::class.java))
         fun stop(ctx: Context) = ctx.stopService(Intent(ctx, PhoneGestureService::class.java))
@@ -120,6 +183,7 @@ class PhoneGestureService : Service(), SensorEventListener {
         PhoneBus.running.value = false
         PhoneBus.result.value = "Detección apagada"
         PhoneBus.trainingTarget.value = null
+        PhoneBus.calibTarget.value = null
         scope.cancel()
         super.onDestroy()
     }
@@ -144,22 +208,38 @@ class PhoneGestureService : Service(), SensorEventListener {
             vibrate(longArrayOf(0, 40, 60, 40))
             return
         }
+        // Calibración guiada: se guardan 3 repeticiones y se ajusta el umbral
+        val calib = PhoneBus.calibTarget.value
+        if (calib != null) {
+            if (PhoneBus.calibSamples.size >= 3) return
+            PhoneBus.calibSamples += seg
+            PhoneBus.calibCount.value = PhoneBus.calibSamples.size
+            vibrate(longArrayOf(0, 40, 60, 40))
+            if (PhoneBus.calibSamples.size == 3) {
+                PhoneBus.calibFactor.value = Calibration.calibrate(calib, PhoneBus.calibSamples.toList())
+                vibrate(longArrayOf(0, 80, 80, 80, 80, 160))
+            }
+            return
+        }
         // Primero la IA (gestos aprendidos), luego los gestos básicos
-        Learner.match(seg)?.let { (id, _) -> onGesture(id); return }
-        BasicClassifier.classify(seg, PhoneBus.sensitivity.value)?.let { onGesture(it) }
+        Learner.match(seg)?.let { (id, conf) ->
+            if (conf < MIN_CONFIDENCE) {
+                PhoneBus.pending = id to seg
+                PhoneBus.result.value = "¿Fue ${Gestures.label(id)}? (${(conf * 100).toInt()} %)"
+                vibrate(longArrayOf(0, 30, 80, 30))
+                askConfirm(this, id, conf)
+            } else {
+                Learner.learnFromUse(id, seg, conf)   // aprende mientras lo usas
+                onGesture(id, conf)
+            }
+            return
+        }
+        BasicClassifier.classify(seg, PhoneBus.sensitivity.value)?.let { onGesture(it, null) }
     }
 
-    private fun onGesture(id: String) {
+    private fun onGesture(id: String, confidence: Float?) {
         vibrate(longArrayOf(0, 60))
-        PhoneBus.lastGesture.value = id
-        PhoneBus.gestureEvent.value = PhoneBus.gestureEvent.value + 1
-        PhoneBus.result.value = "Ejecutando…"
-        scope.launch {
-            val result = ActionRunner.runGesture(this@PhoneGestureService, id)
-            PhoneBus.result.value = result
-            EventLog.add(this@PhoneGestureService, id, result)
-            notifyWatch(this@PhoneGestureService, Gestures.label(id), result)   // aparece y vibra en el Honor
-        }
+        scope.launch { execute(this@PhoneGestureService, id, confidence) }
     }
 
     private fun vibrate(pattern: LongArray) {
