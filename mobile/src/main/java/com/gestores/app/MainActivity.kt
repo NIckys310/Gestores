@@ -628,13 +628,26 @@ private val phonePresets = listOf(
     Rule("media", "prev", "Música: anterior"),
     Rule("volume", "up", "Subir volumen"),
     Rule("volume", "down", "Bajar volumen"),
+    Rule("dnd", "", "🔕 No molestar (encender / apagar)"),
+    Rule("vibrate_mode", "", "📳 Timbre ↔ vibración"),
+)
+
+/** Atajos a las otras dos apps. */
+private val appPresets = listOf(
+    Rule("open_url", "https://guardian-fauna.netlify.app/#/escaner", "🦜 Guardián: abrir el escáner"),
+    Rule("open_url", "https://guardian-fauna.netlify.app/#/alertas/confirmar", "🦜 Guardián: confirmar la última alerta"),
+    Rule("open_url", "timecapsule://nueva", "💌 Time Capsule: cápsula rápida"),
+    Rule("open_app", "com.timecapsule.app", "💌 Abrir Time Capsule"),
 )
 
 @Composable
 private fun RuleDialog(g: GestureDef, current: Rule, onDismiss: () -> Unit, onSave: (Rule) -> Unit) {
     val ctx = LocalContext.current
-    var mode by remember { mutableStateOf("list") }   // list | app | url | webhook | pcopen
+    var mode by remember { mutableStateOf("list") }   // list | app | url | webhook | pcopen | call | wa
     var text by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    var msg by remember { mutableStateOf("") }
+    val callPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     var method by remember { mutableStateOf("GET") }
     val apps = remember { installedApps(ctx) }
 
@@ -649,7 +662,12 @@ private fun RuleDialog(g: GestureDef, current: Rule, onDismiss: () -> Unit, onSa
                         item { Option("📱 Abrir una app…", false) { mode = "app" } }
                         item { Option("🔗 Abrir un enlace…", false) { mode = "url"; text = "https://" } }
                         items(phonePresets) { r -> Option(r.label, current == r) { onSave(r) } }
-                        item { Header("Dispositivos inteligentes") }
+                        item { Header("Personas") }
+                        item { Option("📞 Llamar a un favorito…", current.type == "call") { mode = "call"; text = ""; name = "" } }
+                        item { Option("💬 WhatsApp con mensaje listo…", current.type == "whatsapp") { mode = "wa"; text = ""; name = ""; msg = "Voy en camino 🙌" } }
+                        item { Header("Guardián y Time Capsule") }
+                        items(appPresets) { r -> Option(r.label, current == r) { onSave(r) } }
+                        item { Header("Casa inteligente (lista para cuando tengas aparatos)") }
                         item {
                             Option("💡 Luz, enchufe o aparato (webhook)…", current.type == "webhook") {
                                 mode = "webhook"; text = if (current.type == "webhook") current.value else "http://"
@@ -693,6 +711,29 @@ private fun RuleDialog(g: GestureDef, current: Rule, onDismiss: () -> Unit, onSa
                             )
                             Button(onClick = { onSave(Rule("webhook", text, "Dispositivo: ${Uri.parse(text).host ?: text}", method)) },
                                 enabled = text.length > 10) { Text("Guardar") }
+                        }
+                    }
+                    "call" -> item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(name, { name = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(text, { text = it.trim() }, label = { Text("Número") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            Text("Si das el permiso de llamadas, llama directo. Si no, abre el marcador con el número listo.",
+                                color = Muted, style = MaterialTheme.typography.bodySmall)
+                            Button(onClick = {
+                                callPermission.launch(Manifest.permission.CALL_PHONE)
+                                onSave(Rule("call", text, "Llamar a ${name.ifBlank { text }}"))
+                            }, enabled = text.count { it.isDigit() } >= 7) { Text("Guardar") }
+                        }
+                    }
+                    "wa" -> item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(name, { name = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(text, { text = it.trim() }, label = { Text("Número con indicativo (ej. 57 300…)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(msg, { msg = it }, label = { Text("Mensaje") }, modifier = Modifier.fillMaxWidth())
+                            Text("WhatsApp se abre con el mensaje escrito; tú tocas enviar (así nunca se envía nada sin querer).",
+                                color = Muted, style = MaterialTheme.typography.bodySmall)
+                            Button(onClick = { onSave(Rule("whatsapp", text, "WhatsApp a ${name.ifBlank { text }}", msg)) },
+                                enabled = text.count { it.isDigit() } >= 10) { Text("Guardar") }
                         }
                     }
                     "pcopen" -> item {
