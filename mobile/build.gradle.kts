@@ -13,8 +13,8 @@ android {
         applicationId = "com.gestores.app"
         minSdk = 26
         targetSdk = 33
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -38,5 +38,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     // Botones de música del reloj (Honor, Xiaomi, Amazfit…) como controles extra
     implementation("androidx.media:media:1.7.0")
+    // Leer el QR del PC con el escáner de Google (no necesita permiso de cámara)
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.compose.material:material-icons-extended")
 }

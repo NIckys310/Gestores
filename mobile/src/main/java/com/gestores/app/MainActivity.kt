@@ -592,10 +592,26 @@ private fun RuleRow(g: GestureDef, rule: Rule, onTest: () -> Unit, onEdit: () ->
 private fun PcCard(cfg: Config, onSave: (Config) -> Unit, onTest: () -> Unit) {
     var addr by remember(cfg.pcAddress) { mutableStateOf(cfg.pcAddress) }
     var token by remember(cfg.pcToken) { mutableStateOf(cfg.pcToken) }
+    var scanMsg by remember { mutableStateOf("") }
+    val ctx = LocalContext.current
     Card {
         Text("💻 Controlar el PC", fontWeight = FontWeight.SemiBold, color = Mint)
-        Text("Abre pc/Iniciar_Gestores_PC.bat en tu PC: te muestra la dirección. El PC y el celular deben estar en el mismo Wi-Fi.",
+        Text("Abre pc/Iniciar_Gestores_PC.bat en tu PC y escanea el QR que aparece. El PC y el celular deben estar en el mismo Wi-Fi de tu casa.",
             color = Muted, style = MaterialTheme.typography.bodySmall)
+        Button(onClick = {
+            com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(ctx).startScan()
+                .addOnSuccessListener { code ->
+                    val uri = Uri.parse(code.rawValue ?: "")
+                    val a = uri.getQueryParameter("addr"); val t = uri.getQueryParameter("token")
+                    if (uri.scheme == "gestores" && uri.host == "pc" && !a.isNullOrBlank() && !t.isNullOrBlank()) {
+                        addr = a; token = t
+                        onSave(cfg.copy(pcAddress = a, pcToken = t))
+                        scanMsg = "✓ PC vinculado: $a"
+                    } else scanMsg = "⚠ Ese QR no es el de Gestores PC"
+                }
+                .addOnFailureListener { scanMsg = "⚠ No se pudo abrir el escáner" }
+        }) { Text("📷 Escanear QR del PC") }
+        if (scanMsg.isNotBlank()) Text(scanMsg, color = Teal, style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(addr, { addr = it.trim() }, label = { Text("Dirección del PC") },
             placeholder = { Text("192.168.1.10:8765") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(token, { token = it.trim() }, label = { Text("Clave del PC") }, singleLine = true, modifier = Modifier.fillMaxWidth())
