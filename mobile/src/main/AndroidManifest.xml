@@ -12,6 +12,9 @@
     <!-- Complicaciones de la esfera: pasos y clima (ubicación aproximada) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Llamar a un favorito con un gesto y activar "No molestar" -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <!-- Para listar las apps instaladas y poder elegir cuál abrir -->
     <queries>

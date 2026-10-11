@@ -1,5 +1,6 @@
 package com.gestores.app
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -34,6 +35,11 @@ object ActionRunner {
             "flashlight" -> toggleTorch(ctx)
             "media" -> media(ctx, r.value)
             "volume" -> volume(ctx, r.value == "up")
+            "call" -> call(ctx, r)
+            "whatsapp" -> launch(ctx, Intent(Intent.ACTION_VIEW, Uri.parse(
+                "https://wa.me/${r.value.filter { it.isDigit() }}?text=${Uri.encode(r.extra)}")), "WhatsApp (toca enviar)")
+            "dnd" -> doNotDisturb(ctx)
+            "vibrate_mode" -> vibrateMode(ctx)
             "webhook" -> Http.call(r.value, r.extra.ifBlank { "GET" }, if (r.extra == "POST") "{}" else null)
                 .let { (ok, msg) -> if (ok) "✓ ${r.label}" else "⚠ $msg" }
             "pc" -> {
@@ -94,6 +100,34 @@ object ActionRunner {
         am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
         am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
         return "✓ " + when (what) { "next" -> "Siguiente canción"; "prev" -> "Canción anterior"; else -> "Play / pausa" }
+    }
+
+    /** Llama directo si diste el permiso; si no, abre el marcador con el número listo. */
+    private fun call(ctx: Context, r: Rule): String {
+        val uri = Uri.parse("tel:" + r.value.filter { it.isDigit() || it == '+' })
+        val direct = ctx.has(Manifest.permission.CALL_PHONE)
+        return launch(ctx, Intent(if (direct) Intent.ACTION_CALL else Intent.ACTION_DIAL, uri), r.label.removePrefix("Llamar a "))
+            .replace("Abriendo", "Llamando a")
+    }
+
+    /** "No molestar": prende / apaga. Android pide permiso una sola vez. */
+    private fun doNotDisturb(ctx: Context): String {
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        if (!nm.isNotificationPolicyAccessGranted) {
+            launch(ctx, Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS), "el permiso de No molestar")
+            return "⚠ Activa Gestores en “Acceso a No molestar” y repite el gesto"
+        }
+        val on = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        nm.setInterruptionFilter(if (on) NotificationManager.INTERRUPTION_FILTER_ALL else NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+        return if (on) "✓ No molestar apagado" else "✓ No molestar encendido"
+    }
+
+    /** Timbre ↔ solo vibrar (no necesita permisos especiales). */
+    private fun vibrateMode(ctx: Context): String {
+        val am = ctx.getSystemService(AudioManager::class.java)
+        val toVibrate = am.ringerMode == AudioManager.RINGER_MODE_NORMAL
+        am.ringerMode = if (toVibrate) AudioManager.RINGER_MODE_VIBRATE else AudioManager.RINGER_MODE_NORMAL
+        return if (toVibrate) "✓ Celular en vibración" else "✓ Timbre activado"
     }
 
     private fun volume(ctx: Context, up: Boolean): String {
