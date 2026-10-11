@@ -123,7 +123,10 @@ class GestureService : Service(), SensorEventListener {
             return
         }
         // Primero la IA (gestos aprendidos), luego los gestos básicos
-        Learner.match(seg)?.let { (id, conf) -> onGesture(id, conf); return }
+        Learner.match(seg)?.let { (id, conf) ->
+            Learner.learnFromUse(id, seg, conf)   // aprende mientras lo usas
+            onGesture(id, conf); return
+        }
         BasicClassifier.classify(seg, Bus.sensitivity.value)?.let { onGesture(it, 1f) }
     }
 

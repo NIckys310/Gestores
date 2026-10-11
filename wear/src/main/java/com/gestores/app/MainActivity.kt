@@ -134,7 +134,7 @@ fun WatchApp() {
             }
 
             item { ListHeader { Text("Entrenar IA") } }
-            items(Gestures.ai) { g ->
+            items(Gestures.shapes + Gestures.ai) { g ->
                 val n = remember(refresh) { Learner.count(g.id) }
                 Chip(
                     onClick = {
@@ -142,7 +142,7 @@ fun WatchApp() {
                         Bus.trainingTarget.value = g.id
                         if (!running) GestureService.start(ctx)
                     },
-                    label = { Text("🧠 ${g.name}") },
+                    label = { Text("${g.emoji} ${g.name}") },
                     secondaryLabel = { Text(if (n == 0) "Sin entrenar" else "$n muestras") },
                     colors = ChipDefaults.primaryChipColors(backgroundColor = Deep),
                     modifier = Modifier.fillMaxWidth(),
