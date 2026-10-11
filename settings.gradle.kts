@@ -6,5 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "Gestores"
-include(":wear")    // app del reloj (Wear OS)
-include(":mobile")  // app del celular
+include(":mobile")  // la app: el celular simula un smartwatch
