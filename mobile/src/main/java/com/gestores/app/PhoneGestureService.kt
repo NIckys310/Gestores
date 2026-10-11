@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 object PhoneBus {
     val running = MutableStateFlow(false)
     val lastGesture = MutableStateFlow<String?>(null)
+    /** Sube en 1 cada vez que se detecta un gesto (para animarlo en la esfera). */
+    val gestureEvent = MutableStateFlow(0L)
     val result = MutableStateFlow("")
     val trainingTarget = MutableStateFlow<String?>(null)   // gesto IA que se está entrenando
     val trainCount = MutableStateFlow(0)
@@ -150,6 +152,7 @@ class PhoneGestureService : Service(), SensorEventListener {
     private fun onGesture(id: String) {
         vibrate(longArrayOf(0, 60))
         PhoneBus.lastGesture.value = id
+        PhoneBus.gestureEvent.value = PhoneBus.gestureEvent.value + 1
         PhoneBus.result.value = "Ejecutando…"
         scope.launch {
             val result = ActionRunner.runGesture(this@PhoneGestureService, id)
