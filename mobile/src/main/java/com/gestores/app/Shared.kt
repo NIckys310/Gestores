@@ -35,7 +35,8 @@ object Gestures {
 
 /**
  * Qué hace cada gesto. Todo pasa dentro del celular, nada se conecta con otros aparatos.
- * type: none | app (abre una app del reloj) | face (siguiente esfera) | chrono | flashlight | media | volume | vibrate_mode
+ * type: none | camera | open_app (app del celular) | app (app del reloj) | face | chrono | flashlight
+ *       | media | volume | vibrate_mode   ← estas tres tienen sonido y preguntan antes
  */
 @Serializable
 data class Rule(val type: String = "none", val value: String = "", val label: String = "Sin acción")
@@ -49,25 +50,31 @@ fun Context.prefs() = getSharedPreferences("gestores", Context.MODE_PRIVATE)
 
 /** Acciones que se le pueden poner a un gesto. */
 object Actions {
-    val presets: List<Rule> get() = listOf(
+    /** Se hacen de una vez. */
+    val direct = listOf(
+        Rule("camera", "", "📷 Abrir la cámara"),
+        Rule("flashlight", "", "🔦 Linterna"),
         Rule("face", "", "⌚ Cambiar de esfera"),
         Rule("chrono", "", "⏱️ Cronómetro: iniciar / pausar"),
-        Rule("flashlight", "", "🔦 Linterna"),
-        Rule("media", "playpause", "🎵 Música: play / pausa"),
+    )
+    /** Tienen sonido: primero preguntan "¿Deseas…?". */
+    val sound = listOf(
+        Rule("media", "playpause", "🎵 Música: reproducir / pausar"),
         Rule("media", "next", "⏭️ Música: siguiente"),
         Rule("media", "prev", "⏮️ Música: anterior"),
         Rule("volume", "up", "🔊 Subir volumen"),
         Rule("volume", "down", "🔉 Bajar volumen"),
         Rule("vibrate_mode", "", "📳 Timbre ↔ vibración"),
-    ) + WatchApps.all.map { Rule("app", it.id, "${it.emoji} Abrir ${it.name}") } + Rule()
+    )
+    val watchApps: List<Rule> get() = WatchApps.all.filter { it.id != "gestos" }.map { Rule("app", it.id, "${it.emoji} Abrir ${it.name}") }
 }
 
 /** Reglas guardadas en el celular. */
 object ConfigStore {
     private val defaults = Config(
         rules = mapOf(
-            "alzar" to Rule("app", "clima", "☀️ Abrir Clima"),
-            "bajar" to Rule("media", "playpause", "🎵 Música: play / pausa"),
+            "alzar" to Rule("camera", "", "📷 Abrir la cámara"),
+            "bajar" to Rule("media", "playpause", "🎵 Música: reproducir / pausar"),
             "girar" to Rule("face", "", "⌚ Cambiar de esfera"),
             "sacudir" to Rule("flashlight", "", "🔦 Linterna"),
             "doble_golpe" to Rule("chrono", "", "⏱️ Cronómetro: iniciar / pausar"),
@@ -77,10 +84,10 @@ object ConfigStore {
     )
 
     fun load(ctx: Context): Config =
-        ctx.prefs().getString("config2", null)?.let { runCatching { json.decodeFromString(Config.serializer(), it) }.getOrNull() } ?: defaults
+        ctx.prefs().getString("config3", null)?.let { runCatching { json.decodeFromString(Config.serializer(), it) }.getOrNull() } ?: defaults
 
     fun save(ctx: Context, cfg: Config) {
-        ctx.prefs().edit().putString("config2", json.encodeToString(Config.serializer(), cfg)).apply()
+        ctx.prefs().edit().putString("config3", json.encodeToString(Config.serializer(), cfg)).apply()
     }
 }
 
