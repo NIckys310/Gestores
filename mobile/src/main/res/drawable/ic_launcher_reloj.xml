@@ -1,33 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícono: reloj de lujo dorado con correa de cuero sobre fondo negro -->
+<!-- Ícono: reloj inteligente moderno (cuadrado redondeado) con una mano y ondas de movimiento = gestos -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- correa de cuero -->
-    <path android:pathData="M43,18h22v18h-22z" android:fillColor="#FF4E351E" />
-    <path android:pathData="M43,72h22v18h-22z" android:fillColor="#FF4E351E" />
-    <path android:pathData="M45.5,20v14M62.5,20v14M45.5,74v14M62.5,74v14" android:strokeColor="#99D4AF37" android:strokeWidth="0.8" />
-    <!-- corona -->
-    <path android:pathData="M78,50h4a1.5,1.5 0,0 1,1.5 1.5v5a1.5,1.5 0,0 1,-1.5 1.5h-4z" android:fillColor="#FFD4AF37" />
-    <!-- bisel de oro -->
-    <path android:pathData="M54,54m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0">
+    <!-- correa deportiva café -->
+    <path android:pathData="M42,16h24v16h-24z" android:fillColor="#FF3E2A1B" />
+    <path android:pathData="M42,76h24v16h-24z" android:fillColor="#FF3E2A1B" />
+    <path android:pathData="M54,80m-1.6,0a1.6,1.6 0,1 1,3.2 0a1.6,1.6 0,1 1,-3.2 0M54,86m-1.6,0a1.6,1.6 0,1 1,3.2 0a1.6,1.6 0,1 1,-3.2 0" android:fillColor="#AA0A0908" />
+    <!-- corona y botón -->
+    <path android:pathData="M75,44h3.5a1.2,1.2 0,0 1,1.2 1.2v6a1.2,1.2 0,0 1,-1.2 1.2h-3.5z" android:fillColor="#FFD9A066" />
+    <path android:pathData="M75,57h2v9h-2z" android:fillColor="#FF8A5A33" />
+    <!-- caja de metal cobrizo -->
+    <path android:pathData="M42,29h24a11,11 0,0 1,11 11v28a11,11 0,0 1,-11 11h-24a11,11 0,0 1,-11 -11v-28a11,11 0,0 1,11 -11z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="sweep" android:centerX="54" android:centerY="54">
-                <item android:offset="0" android:color="#FFF3D27A" />
-                <item android:offset="0.35" android:color="#FF6E5A2C" />
-                <item android:offset="0.7" android:color="#FFD4AF37" />
-                <item android:offset="1" android:color="#FFF3D27A" />
+            <gradient android:type="linear" android:startX="31" android:startY="29" android:endX="77" android:endY="79">
+                <item android:offset="0" android:color="#FFF0C08A" />
+                <item android:offset="0.5" android:color="#FF8A5A33" />
+                <item android:offset="1" android:color="#FFD9A066" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- esfera negra -->
-    <path android:pathData="M54,54m-21,0a21,21 0,1 1,42 0a21,21 0,1 1,-42 0" android:fillColor="#FF0E0C09" />
-    <!-- marcas de las horas -->
-    <path android:pathData="M54,36v4M54,68v4M36,54h4M68,54h4" android:strokeColor="#FFD4AF37" android:strokeWidth="2" android:strokeLineCap="round" />
-    <!-- manecillas -->
-    <path android:pathData="M54,54L54,42" android:strokeColor="#FFF3D27A" android:strokeWidth="2.6" android:strokeLineCap="round" />
-    <path android:pathData="M54,54L62,59" android:strokeColor="#FFD4AF37" android:strokeWidth="3" android:strokeLineCap="round" />
-    <path android:pathData="M54,54L46,63" android:strokeColor="#FFC8423B" android:strokeWidth="1" android:strokeLineCap="round" />
-    <path android:pathData="M54,54m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFD4AF37" />
+    <!-- pantalla negra -->
+    <path android:pathData="M43,32.5h22a8.5,8.5 0,0 1,8.5 8.5v26a8.5,8.5 0,0 1,-8.5 8.5h-22a8.5,8.5 0,0 1,-8.5 -8.5v-26a8.5,8.5 0,0 1,8.5 -8.5z" android:fillColor="#FF0C0A09" />
+    <!-- ondas de movimiento (el gesto) -->
+    <path android:pathData="M41,46a14,14 0,0 0,0 16" android:strokeColor="#FFD9A066" android:strokeWidth="1.8" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M37.5,43a19,19 0,0 0,0 22" android:strokeColor="#88D9A066" android:strokeWidth="1.4" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M67,46a14,14 0,0 1,0 16" android:strokeColor="#FFD9A066" android:strokeWidth="1.8" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M70.5,43a19,19 0,0 1,0 22" android:strokeColor="#88D9A066" android:strokeWidth="1.4" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <!-- mano abierta -->
+    <path android:fillColor="#FFF2ECE6"
+        android:pathData="M48.6,57V45.2a1.6,1.6 0,0 1,3.2 0V54h0.6V42.4a1.6,1.6 0,0 1,3.2 0V54h0.6V43.6a1.6,1.6 0,0 1,3.2 0V55h0.6v-8.2a1.6,1.6 0,0 1,3.2 0V60c0,5.2 -3.4,9 -8.4,9c-3.2,0 -5.2,-1.4 -6.8,-3.8l-4.4,-6.6a1.7,1.7 0,0 1,2.6 -2.1z" />
 </vector>
