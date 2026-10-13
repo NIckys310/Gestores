@@ -12,41 +12,40 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /* =========================================================
-   Estilo "reloj clásico de lujo": negro, oro y acero (noche)
-   o marfil, oro y acero (día). Cámbialo aquí.
+   Estilo "tecnología": negro y café oscuro con acento cobre (noche)
+   o blanco cálido y café (día). Cámbialo aquí.
    ========================================================= */
 data class EngPalette(
     val bg: Color, val panel: Color, val border: Color,
-    val primary: Color,   // oro: acción principal y manecillas
-    val alert: Color,     // rubí: alertas y segundero
+    val primary: Color,   // acento cobre: acción principal
+    val alert: Color,     // rojo: alertas y segundero
     val text: Color, val muted: Color, val isDark: Boolean,
-    val steel: Color = Color(0xFFB8BEC6),     // acero cepillado
+    val steel: Color = Color(0xFFB8BEC6),
     val raised: Color = panel,
-    val goldLight: Color = Color(0xFFF3D27A),
+    val goldLight: Color = Color(0xFFF0C08A),
 )
 
 val DarkEng = EngPalette(
-    bg = Color(0xFF0B0A08), panel = Color(0xFF17140F), border = Color(0xFF6E5A2C),
-    primary = Color(0xFFD4AF37), alert = Color(0xFFC8423B),
-    text = Color(0xFFF3EBD8), muted = Color(0xFF9C927E), isDark = true,
-    steel = Color(0xFFB8BEC6), raised = Color(0xFF221D15), goldLight = Color(0xFFF3D27A),
+    bg = Color(0xFF0A0908), panel = Color(0xFF17110D), border = Color(0xFF4A3626),
+    primary = Color(0xFFD9A066), alert = Color(0xFFE5533D),
+    text = Color(0xFFF2ECE6), muted = Color(0xFFA08C7A), isDark = true,
+    steel = Color(0xFF8E8A86), raised = Color(0xFF241A13), goldLight = Color(0xFFF0C08A),
 )
 
 val LightEng = EngPalette(
-    bg = Color(0xFFF7F2E7), panel = Color(0xFFFFFDF7), border = Color(0xFFCBB27A),
-    primary = Color(0xFFA8842C), alert = Color(0xFFA93226),
-    text = Color(0xFF1F1A12), muted = Color(0xFF6E6553), isDark = false,
-    steel = Color(0xFF6E747C), raised = Color(0xFFEFE6D2), goldLight = Color(0xFFD4AF37),
+    bg = Color(0xFFF4F1EE), panel = Color(0xFFFFFFFF), border = Color(0xFFCDBBAA),
+    primary = Color(0xFF8A5A33), alert = Color(0xFFC0392B),
+    text = Color(0xFF1A1410), muted = Color(0xFF6F6359), isDark = false,
+    steel = Color(0xFF5E5A56), raised = Color(0xFFEAE3DC), goldLight = Color(0xFFB57A45),
 )
 
 val LocalEng = staticCompositionLocalOf { DarkEng }
 
-/** Borde dorado degradado (como el bisel de un reloj). */
+/** Borde con degradado cobre (como el bisel de un reloj). */
 fun EngPalette.goldBrush() = Brush.linearGradient(listOf(goldLight, primary, border, primary, goldLight))
 
 /** Tema: "system" (sigue al celular), "dark" o "light". */
@@ -56,15 +55,11 @@ object ThemePrefs {
     fun saveMode(ctx: Context, mode: String) = prefs(ctx).edit().putString("mode", mode).apply()
 }
 
-/* Serif elegante para títulos y la hora; letra normal para leer cómodo */
-private val Serif = FontFamily.Serif
-private val Lux = Typography().run {
+/* Letra moderna sin serifa, títulos en seminegrita con espaciado */
+private val Tech = Typography().run {
     copy(
-        displayLarge = displayLarge.copy(fontFamily = Serif), displayMedium = displayMedium.copy(fontFamily = Serif),
-        displaySmall = displaySmall.copy(fontFamily = Serif), headlineLarge = headlineLarge.copy(fontFamily = Serif),
-        headlineMedium = headlineMedium.copy(fontFamily = Serif), headlineSmall = headlineSmall.copy(fontFamily = Serif),
-        titleLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, letterSpacing = 0.5.sp),
-        titleMedium = titleMedium.copy(fontFamily = Serif, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp),
+        titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, letterSpacing = 0.5.sp),
+        titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp),
     )
 }
 
@@ -75,7 +70,7 @@ fun isDarkMode(mode: String) = when (mode) { "dark" -> true; "light" -> false; e
 fun GestoresTheme(dark: Boolean, content: @Composable () -> Unit) {
     val p = if (dark) DarkEng else LightEng
     val scheme = if (dark) darkColorScheme(
-        primary = p.primary, onPrimary = Color(0xFF1A1405), secondary = p.steel, error = p.alert,
+        primary = p.primary, onPrimary = Color(0xFF1A120B), secondary = p.steel, error = p.alert,
         background = p.bg, surface = p.panel, onSurface = p.text, onBackground = p.text,
         surfaceVariant = p.raised, onSurfaceVariant = p.muted, outline = p.border,
         surfaceContainerHigh = p.raised, surfaceContainer = p.panel,
@@ -86,6 +81,6 @@ fun GestoresTheme(dark: Boolean, content: @Composable () -> Unit) {
         surfaceContainerHigh = p.raised, surfaceContainer = p.panel,
     )
     CompositionLocalProvider(LocalEng provides p) {
-        MaterialTheme(colorScheme = scheme, typography = Lux, content = content)
+        MaterialTheme(colorScheme = scheme, typography = Tech, content = content)
     }
 }
