@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -88,7 +89,7 @@ object WatchApps {
         WatchApp("calc", "🧮", "Calculadora", "Utilidades"),
         WatchApp("notas", "📝", "Notas", "Utilidades"),
         WatchApp("musica", "🎵", "Música", "Utilidades"),
-        WatchApp("gestos", "✋", "Gestos", "Gestos e IA"),
+        WatchApp("gestos", "✋", "Gestores", "Gestos e IA"),
         WatchApp("entrenar", "🧠", "Entrenar IA", "Gestos e IA"),
         WatchApp("ajustes", "⚙️", "Ajustes", "Gestos e IA"),
     )
@@ -112,7 +113,7 @@ fun WatchAppScreen(id: String, mode: String, onMode: (String) -> Unit) {
         "calc" -> CalcApp()
         "notas" -> NotesApp()
         "musica" -> MusicApp()
-        "gestos" -> GesturesApp()
+        "gestos" -> GestoresApp()
         "entrenar" -> TrainApp()
         "ajustes" -> SettingsApp(mode, onMode)
     }
@@ -134,13 +135,13 @@ fun Dial(scroll: Boolean = true, content: @Composable () -> Unit) {
 @Composable
 fun Title(t: String) {
     val eng = LocalEng.current
-    Text(t, color = eng.primary, fontFamily = FontFamily.Serif, fontSize = 15.sp, letterSpacing = 1.sp)
+    Text(t, color = eng.primary, fontFamily = FontFamily.SansSerif, fontSize = 15.sp, letterSpacing = 1.sp)
 }
 
 @Composable
 fun Big(t: String, size: TextUnit = 40.sp) {
     val eng = LocalEng.current
-    Text(t, color = eng.text, fontFamily = FontFamily.Serif, fontSize = size, fontWeight = FontWeight.Light, textAlign = TextAlign.Center)
+    Text(t, color = eng.text, fontFamily = FontFamily.SansSerif, fontSize = size, fontWeight = FontWeight.Light, textAlign = TextAlign.Center)
 }
 
 @Composable
@@ -245,7 +246,7 @@ private fun AlarmApp() {
             alarms.sortedBy { it.hour * 60 + it.minute }.forEach { a ->
                 Line {
                     Text("%02d:%02d".format(a.hour, a.minute), color = if (a.on) LocalEng.current.text else LocalEng.current.muted,
-                        fontFamily = FontFamily.Serif, fontSize = 24.sp)
+                        fontFamily = FontFamily.SansSerif, fontSize = 24.sp)
                     Pill(if (a.on) "ON" else "OFF", filled = a.on) { save(alarms.map { if (it.id == a.id) it.copy(on = !it.on) else it }) }
                     Text("✕", color = LocalEng.current.alert, modifier = Modifier.clickable { Alarms.cancel(ctx, a.id); save(alarms - a) }.padding(4.dp))
                 }
@@ -374,7 +375,7 @@ private fun BreatheApp() {
         Box(Modifier.size(140.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.size(140.dp).graphicsLayer { val k = if (on) anim else 0.6f; scaleX = k; scaleY = k }
                 .clip(CircleShape).background(Brush.radialGradient(listOf(eng.goldLight.copy(alpha = 0.7f), eng.primary.copy(alpha = 0.15f)))))
-            Text(if (!on) "🫁" else if (phase == 0L) "Inhala" else "Exhala", color = eng.text, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+            Text(if (!on) "🫁" else if (phase == 0L) "Inhala" else "Exhala", color = eng.text, fontFamily = FontFamily.SansSerif, fontSize = 18.sp)
         }
         if (on) Small("Ciclo ${(now - start) / 8000 + 1}") else Small("4 s inhalar · 4 s exhalar")
         Pill(if (on) "Terminar" else "Empezar", filled = !on) { on = !on; start = System.currentTimeMillis() }
@@ -482,7 +483,7 @@ private fun CalcApp() {
         }
     }
     Dial(scroll = false) {
-        Text(display, color = eng.text, fontFamily = FontFamily.Serif, fontSize = 26.sp, maxLines = 1, textAlign = TextAlign.End,
+        Text(display, color = eng.text, fontFamily = FontFamily.SansSerif, fontSize = 26.sp, maxLines = 1, textAlign = TextAlign.End,
             modifier = Modifier.width(176.dp))
         listOf(listOf("C", "⌫", "%", "÷"), listOf("7", "8", "9", "×"), listOf("4", "5", "6", "−"), listOf("1", "2", "3", "+"), listOf("0", ".", "="))
             .forEach { row ->
@@ -539,48 +540,121 @@ private fun MusicApp() {
 
 /* ---------------- GESTOS E IA ---------------- */
 
+/** Una app del celular que se puede abrir con un gesto. */
+private data class PhoneApp(val label: String, val pkg: String)
+
+private fun installedApps(ctx: android.content.Context): List<PhoneApp> {
+    val pm = ctx.packageManager
+    val i = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+    return pm.queryIntentActivities(i, 0).map { PhoneApp(it.loadLabel(pm).toString(), it.activityInfo.packageName) }
+        .filter { it.pkg != ctx.packageName }.distinctBy { it.pkg }.sortedBy { it.label.lowercase() }
+}
+
+/**
+ * GESTORES: todos los gestos, qué hace cada uno y el interruptor general.
+ * Las acciones con sonido preguntan "¿Deseas…?" antes; cámara y apps se abren de una vez.
+ */
 @Composable
-private fun GesturesApp() {
+private fun GestoresApp() {
     val ctx = LocalContext.current
     val eng = LocalEng.current
+    val on by WatchState.gestoresOn.collectAsState()
     val running by PhoneBus.running.collectAsState()
     val last by PhoneBus.lastGesture.collectAsState()
     val result by PhoneBus.result.collectAsState()
     val sens by PhoneBus.sensitivity.collectAsState()
     var cfg by remember { mutableStateOf(ConfigStore.load(ctx)) }
     var editing by remember { mutableStateOf<String?>(null) }
+    var pickingApp by remember { mutableStateOf(false) }
+    val apps = remember(pickingApp) { if (pickingApp) installedApps(ctx) else emptyList() }
+
+    fun choose(id: String, r: Rule) { cfg = cfg.copy(rules = cfg.rules + (id to r)); ConfigStore.save(ctx, cfg); editing = null; pickingApp = false }
+
+    @Composable
+    fun Option(id: String, r: Rule) {
+        val sel = cfg.rules[id] == r
+        Text((if (sel) "● " else "") + r.label, color = if (sel) eng.primary else eng.text, fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { choose(id, r) }.padding(vertical = 5.dp, horizontal = 4.dp))
+    }
+
+    @Composable
+    fun Section(t: String) = Text(t.uppercase(), color = eng.primary, fontSize = 10.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 6.dp))
+
     val e = editing
-    Dial {
-        if (e != null) {
-            Title(Gestures.label(e).uppercase())
-            Actions.presets.forEach { r ->
-                val sel = cfg.rules[e] == r
-                Text((if (sel) "● " else "") + r.label, color = if (sel) eng.primary else eng.text, fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        cfg = cfg.copy(rules = cfg.rules + (e to r)); ConfigStore.save(ctx, cfg); editing = null
-                    }.padding(vertical = 5.dp))
+    key(e, pickingApp) { Dial {
+        when {
+            // Elegir una app del celular
+            e != null && pickingApp -> {
+                Title("ABRIR UNA APP")
+                apps.forEach { a -> Option(e, Rule("open_app", a.pkg, "📱 Abrir ${a.label}")) }
+                Pill("Atrás") { pickingApp = false }
             }
-            Pill("Atrás") { editing = null }
-        } else {
-            Title("GESTOS")
-            Pill(if (running) "● Detectando" else "○ Apagado", filled = running) {
-                if (running) PhoneGestureService.stop(ctx) else PhoneGestureService.start(ctx)
-            }
-            if (running && last != null) Small("${Gestures.label(last!!)} → $result")
-            Line {
-                listOf("Baja" to 0.8f, "Normal" to 1f, "Alta" to 1.3f).forEach { (l, v) ->
-                    Pill(l, filled = kotlin.math.abs(sens - v) < 0.05f) { PhoneGestureService.saveSensitivity(ctx, v) }
+            // Qué hace un gesto
+            e != null -> {
+                val g = Gestures.get(e)
+                Text(g?.emoji ?: "✋", fontSize = 30.sp)
+                Title((g?.name ?: e).uppercase())
+                Small(g?.hint ?: "")
+                Line {
+                    Pill("▶ Probar", filled = true) { PhoneGestureService.execute(ctx, e, null) }
+                    Pill("Atrás") { editing = null }
                 }
+                Section("Se hace de una vez")
+                Actions.direct.forEach { Option(e, it) }
+                val cur = cfg.rules[e]
+                Text((if (cur?.type == "open_app") "● ${cur.label}" else "📱 Abrir una app del celular…"),
+                    color = if (cur?.type == "open_app") eng.primary else eng.text, fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth().clickable { pickingApp = true }.padding(vertical = 5.dp, horizontal = 4.dp))
+                Section("Pregunta antes (sonido)")
+                Actions.sound.forEach { Option(e, it) }
+                Section("Apps del reloj")
+                Actions.watchApps.forEach { Option(e, it) }
+                Section("Nada")
+                Option(e, Rule())
             }
-            Small("Toca un gesto para elegir qué hace")
-            Gestures.all.forEach { g ->
-                Column(Modifier.fillMaxWidth().clickable { editing = g.id }.padding(vertical = 3.dp)) {
-                    Text("${g.emoji} ${g.name}", color = eng.text, fontSize = 12.sp)
-                    Text("   " + (cfg.rules[g.id]?.label ?: "Sin acción"), color = eng.muted, fontSize = 10.sp)
+            // Lista de gestos
+            else -> {
+                Title("GESTORES")
+                // Interruptor general
+                Box(
+                    Modifier.width(190.dp).clip(RoundedCornerShape(50)).background(if (on) eng.primary else eng.raised)
+                        .border(1.dp, eng.goldBrush(), RoundedCornerShape(50)).clickable { WatchState.setGestores(ctx, !on) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(if (on) "● Gestores activados" else "○ Gestores desactivados", color = if (on) eng.bg else eng.text,
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Small(if (on && running) "Mueve el celular para hacer un gesto" else "Actívalo para usar los gestos")
+                if (on && last != null) Small("Último: ${Gestures.label(last!!)} → $result")
+                Line {
+                    listOf("Suave" to 1.3f, "Normal" to 1f, "Fuerte" to 0.8f).forEach { (l, v) ->
+                        Pill(l, filled = kotlin.math.abs(sens - v) < 0.05f) { PhoneGestureService.saveSensitivity(ctx, v) }
+                    }
+                }
+                if (!android.provider.Settings.canDrawOverlays(ctx)) Pill("🔓 Permitir abrir apps") {
+                    ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:" + ctx.packageName)))
+                }
+                listOf("Gestos" to Gestures.builtIn, "Dibujar en el aire" to Gestures.shapes, "Tus gestos IA" to Gestures.ai).forEach { (t, list) ->
+                    Section(t)
+                    list.forEach { g ->
+                        val r = cfg.rules[g.id]
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { editing = g.id }.padding(vertical = 4.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text(g.emoji, fontSize = 18.sp, modifier = Modifier.width(30.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(g.name, color = eng.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text((r?.label ?: "Sin acción") + if (r != null && ActionRunner.needsConfirm(r)) "  · pregunta" else "",
+                                    color = eng.muted, fontSize = 10.sp)
+                            }
+                            Text("›", color = eng.primary, fontSize = 16.sp)
+                        }
+                    }
                 }
             }
         }
-    }
+    } }
 }
 
 @Composable
@@ -682,8 +756,11 @@ private fun SettingsApp(mode: String, onMode: (String) -> Unit) {
     val log = remember { EventLog.list(ctx) }
     Dial {
         Title("AJUSTES")
-        Small("Tema")
-        Line { listOf("system" to "Auto", "dark" to "Noche", "light" to "Día").forEach { (k, l) -> Pill(l, filled = mode == k) { onMode(k) } } }
+        Small("Modo claro / oscuro")
+        Line { listOf("system" to "Auto", "dark" to "Oscuro", "light" to "Claro").forEach { (k, l) -> Pill(l, filled = mode == k) { onMode(k) } } }
+        val shape by WatchState.shape.collectAsState()
+        Small("Forma del reloj")
+        Line { listOf("square" to "▢ Cuadrado", "round" to "◯ Redondo").forEach { (k, l) -> Pill(l, filled = shape == k) { WatchState.setShape(ctx, k) } } }
         Pill(if (aod) "🌙 Siempre encendido: sí" else "Siempre encendido: no", filled = aod) {
             WatchState.setAod(ctx, !aod)
         }
