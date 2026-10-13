@@ -12,8 +12,8 @@ android {
         applicationId = "com.gestores.app"
         minSdk = 26
         targetSdk = 33
-        versionCode = 3
-        versionName = "3.0 reloj"
+        versionCode = 4
+        versionName = "4.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
