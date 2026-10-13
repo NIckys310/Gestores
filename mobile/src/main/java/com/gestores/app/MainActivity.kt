@@ -44,4 +44,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() { super.onResume(); WatchState.visible = true }
+    override fun onPause() { super.onPause(); WatchState.visible = false }
 }

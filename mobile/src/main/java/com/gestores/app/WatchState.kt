@@ -30,10 +30,33 @@ object WatchState {
 
     val nextFace = MutableStateFlow(0)
 
+    /** true mientras la app está en pantalla (para preguntar dentro del reloj o con notificación). */
+    @Volatile var visible = false
+
+    /** Acción con sonido esperando "Sí" o "No": (gesto, acción). */
+    val confirm = MutableStateFlow<Pair<String, Rule>?>(null)
+
+    /** Interruptor general de Gestores (detección de gestos encendida o apagada). */
+    val gestoresOn = MutableStateFlow(false)
+    fun setGestores(ctx: Context, on: Boolean) {
+        gestoresOn.value = on
+        ctx.prefs().edit().putBoolean("gestores_on", on).apply()
+        if (on) PhoneGestureService.start(ctx) else PhoneGestureService.stop(ctx)
+    }
+
+    /** Forma del reloj: "square" (cuadrado, como un reloj inteligente) o "round" (redondo). */
+    val shape = MutableStateFlow("square")
+    fun setShape(ctx: Context, v: String) { shape.value = v; ctx.prefs().edit().putString("shape", v).apply() }
+
     /** Siempre encendido (pantalla oscura que no se apaga). */
     val aod = MutableStateFlow(false)
     fun setAod(ctx: Context, v: Boolean) { aod.value = v; ctx.prefs().edit().putBoolean("aod", v).apply() }
-    fun init(ctx: Context) { aod.value = ctx.prefs().getBoolean("aod", false) }
+    fun init(ctx: Context) {
+        aod.value = ctx.prefs().getBoolean("aod", false)
+        shape.value = ctx.prefs().getString("shape", "square") ?: "square"
+        gestoresOn.value = ctx.prefs().getBoolean("gestores_on", false)
+        if (gestoresOn.value && !PhoneBus.running.value) runCatching { PhoneGestureService.start(ctx) }
+    }
     val torch = MutableStateFlow(false)
 
     // Cronómetro: sigue contando aunque cambies de app
