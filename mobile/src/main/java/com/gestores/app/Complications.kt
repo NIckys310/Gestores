@@ -37,6 +37,8 @@ data class Complications(
     val nextAlarm: String? = null,
 )
 
+/** ¿Ya diste este permiso? (El de pasos solo existe desde Android 10; antes no hace falta.) */
+@SuppressLint("InlinedApi")   // la constante solo se compara: en Android 9 o anterior no se pide
 fun Context.has(p: String) =
     (p == Manifest.permission.ACTIVITY_RECOGNITION && android.os.Build.VERSION.SDK_INT < 29) ||
         ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
