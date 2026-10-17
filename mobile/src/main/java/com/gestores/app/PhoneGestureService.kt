@@ -116,7 +116,11 @@ class PhoneGestureService : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) stopSelf()
+        if (intent?.action == ACTION_STOP) {
+            WatchState.gestoresOn.value = false                       // el interruptor de la app queda igual que el servicio
+            prefs().edit().putBoolean("gestores_on", false).apply()
+            stopSelf()
+        }
         return START_STICKY
     }
 
@@ -166,6 +170,7 @@ class PhoneGestureService : Service(), SensorEventListener {
         // Primero la IA (gestos aprendidos), luego los gestos básicos
         Learner.match(seg)?.let { (id, conf) ->
             if (conf < MIN_CONFIDENCE) {
+                if (!WatchState.visible) return                       // nadie vería la pregunta: se ignora
                 PhoneBus.pending = id to seg
                 WatchState.ask.value = id to conf          // la esfera pregunta "¿Fue este gesto?"
                 vibrate(longArrayOf(0, 30, 80, 30))
