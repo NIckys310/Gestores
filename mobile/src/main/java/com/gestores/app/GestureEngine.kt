@@ -72,6 +72,7 @@ class MotionSegmenter(private val onSegment: (List<Sample>) -> Unit) {
 /** Reconoce los gestos básicos con reglas físicas (picos de aceleración, giro e inversiones). */
 object BasicClassifier {
     fun classify(s: List<Sample>, sensitivity: Float): String? {
+        if (s.isEmpty()) return null
         val k = sensitivity
         // Umbral de cada gesto = fuerza base × tu calibración ÷ sensibilidad
         fun t(id: String, base: Float) = base * Calibration.factor(id) / k
@@ -150,7 +151,9 @@ object Calibration {
     /** Guarda la calibración con tus muestras y devuelve el nuevo factor (1 = normal). */
     fun calibrate(id: String, samples: List<List<Sample>>): Float {
         val b = base[id] ?: return 1f
-        val avg = samples.map { metric(id, it) }.average().toFloat()
+        val validas = samples.filter { it.isNotEmpty() }
+        if (validas.isEmpty()) return factor(id)            // sin muestras no se cambia nada
+        val avg = validas.map { metric(id, it) }.average().toFloat()
         val f = (avg * 0.65f / b).coerceIn(0.5f, 1.8f)
         factors[id] = f
         save()
@@ -158,6 +161,9 @@ object Calibration {
     }
 
     private fun save() { ctx?.prefs()?.edit()?.putString("calibration", json.encodeToString(ser, factors))?.apply() }
+
+    /** Borra toda la calibración en memoria (para las pruebas automáticas). */
+    internal fun resetForTests() { factors.clear() }
 }
 
 /**
@@ -192,6 +198,7 @@ object Learner {
     fun count(id: String) = templates[id]?.size ?: 0
 
     fun add(id: String, seg: List<Sample>) {
+        if (seg.isEmpty()) return
         val list = templates.getOrPut(id) { mutableListOf() }
         list += resample(seg)
         while (list.size > MAX_SAMPLES) list.removeAt(0)   // se queda con las más recientes
@@ -206,7 +213,12 @@ object Learner {
     fun nameOf(id: String): String? = names[id]
     fun rename(id: String, name: String) {
         if (name.isBlank()) names.remove(id) else names[id] = name.trim().take(24)
-        appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
+        saveNames()
+    }
+
+    /** Guarda en el celular solo si la app ya inició (en las pruebas automáticas no hay celular). */
+    private fun saveNames() {
+        if (::appCtx.isInitialized) appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
     }
 
     /** Exporta los gestos aprendidos, sus nombres y la calibración (para guardarlos o pasarlos a otro celular). */
@@ -221,7 +233,7 @@ object Learner {
         templates.clear()
         b.templates.forEach { (id, list) -> templates[id] = list.map { seq -> seq.map { it.toFloatArray() } }.toMutableList() }
         names.clear(); names.putAll(b.names)
-        appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
+        saveNames()
         Calibration.setAll(b.calibration)
         save()
         return templates.size
@@ -231,7 +243,7 @@ object Learner {
 
     /** Devuelve el gesto aprendido más parecido y la confianza (0 a 1), o null si ninguno se parece. */
     fun match(seg: List<Sample>): Pair<String, Float>? {
-        if (templates.values.none { it.isNotEmpty() }) return null
+        if (seg.size < 2 || templates.values.none { it.isNotEmpty() }) return null
         val q = resample(seg)
         var bestId: String? = null; var best = Float.MAX_VALUE
         for ((id, list) in templates) for (t in list) {
@@ -270,9 +282,13 @@ object Learner {
     }
 
     private fun save() {
+        if (!::appCtx.isInitialized) return
         val plain = templates.mapValues { (_, list) -> list.map { seq -> seq.map { it.toList() } } }
         appCtx.prefs().edit().putString("templates", json.encodeToString(ser, plain)).apply()
     }
+
+    /** Borra todo lo aprendido en memoria (para las pruebas automáticas). */
+    internal fun resetForTests() { templates.clear(); names.clear() }
 }
 
 /** Copia de seguridad de la IA de gestos. */
