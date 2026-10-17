@@ -71,7 +71,7 @@ object Actions {
 
 /** Reglas guardadas en el celular. */
 object ConfigStore {
-    private val defaults = Config(
+    internal val defaults = Config(
         rules = mapOf(
             "alzar" to Rule("camera", "", "📷 Abrir la cámara"),
             "bajar" to Rule("media", "playpause", "🎵 Música: reproducir / pausar"),
