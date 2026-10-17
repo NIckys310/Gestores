@@ -7,7 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.graphics.Typeface
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -95,17 +95,21 @@ private val FACES = listOf("Digital", "Cronógrafo", "Minimalista", "Clásica", 
 private val ROMAN = listOf("XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI")
 
 @Composable
-fun WatchHome(mode: String, onMode: (String) -> Unit) {
+fun WatchHome(
+    mode: String,
+    onMode: (String) -> Unit,
+    vm: RelojViewModel = viewModel(factory = RelojViewModel.factory(LocalContext.current)),
+) {
     val ctx = LocalContext.current
     val eng = LocalEng.current
-    val prefs = remember { ctx.prefs() }
-    var face by remember { mutableIntStateOf(prefs.getInt("face2", 0)) }
+    // Qué se ve y qué esfera está puesta: lo maneja el ViewModel (sobrevive a girar el celular)
+    val screen by vm.pantalla.collectAsState()
+    val face by vm.esfera.collectAsState()
     val aod by WatchState.aod.collectAsState()
     val shape by WatchState.shape.collectAsState()
     val running by PhoneBus.running.collectAsState()
     val gestoresOn by WatchState.gestoresOn.collectAsState()
     val comp = rememberComplications()
-    var screen by rememberSaveable { mutableStateOf("face") }   // face | apps | id de una app
 
     // Hora fluida (60 fps) o, en siempre encendido, una vez por segundo para ahorrar batería
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -125,17 +129,7 @@ fun WatchHome(mode: String, onMode: (String) -> Unit) {
         onDispose { view.keepScreenOn = false; w?.attributes = w?.attributes?.apply { screenBrightness = -1f } }
     }
 
-    fun setFace(i: Int) { face = (i + FACES.size) % FACES.size; prefs.edit().putInt("face2", face).apply() }
-    fun back() { screen = if (screen == "face" || screen == "apps") "face" else "apps" }
-
-    // Los gestos pueden abrir apps y cambiar la esfera
-    val request by WatchState.openRequest.collectAsState()
-    LaunchedEffect(request) { request?.let { screen = it; WatchState.openRequest.value = null } }
-    val faceTick by WatchState.nextFace.collectAsState()
-    var lastTick by remember { mutableIntStateOf(faceTick) }
-    LaunchedEffect(faceTick) { if (faceTick != lastTick) { lastTick = faceTick; screen = "face"; setFace(face + 1) } }
-
-    BackHandler(enabled = screen != "face") { back() }
+    BackHandler(enabled = vm.puedeVolver) { vm.atras() }
 
     val round = shape == "round"
     Box(
@@ -151,8 +145,7 @@ fun WatchHome(mode: String, onMode: (String) -> Unit) {
                 Band(top = true, dim = dimmed, width = dial * 0.62f)
 
                 Box(contentAlignment = Alignment.Center) {
-                    SideButtons(dial, screen, onCrown = { screen = if (screen == "face") "apps" else if (screen == "apps") "face" else "apps" },
-                        onButton = { screen = if (screen == "gestos") "face" else "gestos" })
+                    SideButtons(dial, screen, onCrown = vm::corona, onButton = vm::botonLateral)
                     Box(
                         Modifier.size(dial).clip(caseShape)
                             .background(Brush.linearGradient(listOf(eng.goldLight, eng.border, eng.primary, eng.border)))   // caja de metal cobrizo
@@ -161,8 +154,7 @@ fun WatchHome(mode: String, onMode: (String) -> Unit) {
                             .pointerInput(screen) {
                                 var drag = 0f
                                 detectHorizontalDragGestures(onDragEnd = {
-                                    if (screen == "face") { if (drag < -80) setFace(face + 1) else if (drag > 80) setFace(face - 1) }
-                                    else if (drag > 90) back()
+                                    vm.deslizar(drag)
                                     drag = 0f
                                 }) { _, d -> drag += d }
                             },
@@ -179,9 +171,9 @@ fun WatchHome(mode: String, onMode: (String) -> Unit) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 when (s) {
                                     "face" -> FaceView(face, now, aod, comp, running,
-                                        onTap = { screen = "apps" },
+                                        onTap = { vm.abrir(RelojViewModel.MENU) },
                                         onLong = { WatchState.setAod(ctx, !aod) })
-                                    "apps" -> AppMenu(round) { screen = it }
+                                    "apps" -> AppMenu(round, vm::abrir)
                                     else -> WatchAppScreen(s, mode, onMode)
                                 }
                             }
@@ -198,9 +190,9 @@ fun WatchHome(mode: String, onMode: (String) -> Unit) {
                 // Debajo del reloj: nombre de lo que se ve
                 if (screen == "face") {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("‹", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { setFace(face - 1) }.padding(horizontal = 8.dp))
+                        Text("‹", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { vm.cambiarEsfera(-1) }.padding(horizontal = 8.dp))
                         Text(FACES[face], color = eng.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
-                        Text("›", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { setFace(face + 1) }.padding(horizontal = 8.dp))
+                        Text("›", color = eng.primary, fontSize = 28.sp, modifier = Modifier.clickable { vm.cambiarEsfera(+1) }.padding(horizontal = 8.dp))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         repeat(FACES.size) { i -> Box(Modifier.size(if (i == face) 9.dp else 6.dp).clip(CircleShape).background(if (i == face) eng.primary else eng.border)) }
