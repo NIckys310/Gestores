@@ -1,13 +1,18 @@
 # Gestores · Tu celular convertido en smartwatch
 
-Una sola app para el celular. La pantalla es siempre un **reloj de lujo** (correa de cuero, bisel y
-corona dorados) y todas las apps se abren **dentro de la esfera**. No se conecta con nada: ni PC,
-ni relojes Wear OS, ni otras apps. Solo usa internet para el clima.
+Una sola app para el celular. La pantalla es siempre un **reloj inteligente moderno** (cuadrado o
+redondo, caja cobriza y correa café) y todas las apps se abren **dentro del reloj**. Arriba del menú
+está **Gestores**: todos los gestos, qué hace cada uno y el interruptor para activarlos o desactivarlos.
+No se conecta con nada: ni PC, ni relojes Wear OS. Solo usa internet para el clima.
+
+- Lo que tiene **sonido** (música, volumen, timbre) pregunta antes: *"¿Deseas reproducir o pausar la música?"* **Sí / No**.
+- Abrir la **cámara** o una **app** del celular se hace de una vez.
 
 ## Cómo se usa
-- **Corona dorada** (a la derecha del reloj): abre las apps; desde una app, vuelve a la lista.
+- **Corona** (a la derecha del reloj): abre el menú; desde una app, vuelve al menú.
+- **Botón lateral** (debajo de la corona): abre Gestores directo.
 - **Tocar la esfera**: también abre las apps.
-- **Deslizar sobre la esfera**: cambia de esfera (Clásica romana, Cronógrafo, Minimalista, Digital de lujo, Deportiva).
+- **Deslizar sobre la esfera**: cambia de esfera (Digital, Cronógrafo, Minimalista, Clásica, Deportiva).
 - **Deslizar a la derecha dentro de una app** o el botón Atrás del celular: volver.
 - **Mantener presionada la esfera**: modo siempre encendido (pantalla oscura que no se apaga).
 
@@ -42,4 +47,25 @@ Compilar: `gradlew :mobile:assembleDebug` (con JDK 17–21).
 | Alarmas, temporizador, agua | `mobile/.../WatchState.kt` |
 | Qué tan fuerte debe ser un gesto y la IA | `mobile/.../GestureEngine.kt` |
 | Lo que hace cada gesto | `mobile/.../ActionRunner.kt` y `Shared.kt` |
-| Colores (oro, negro, marfil) | `mobile/.../Theme.kt` |
+| Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../Theme.kt` |
+
+## Pruebas automáticas
+Gestores tiene **95 pruebas** que corren en la computadora, sin celular:
+
+```bash
+gradlew :mobile:testDebugUnitTest
+```
+
+| Archivo | Qué revisa |
+|---|---|
+| `BasicClassifierTest` | Reconoce alzar, bajar, girar, doble giro, sacudir, doble golpe y toques; la sensibilidad |
+| `MotionSegmenterTest` | Corta los datos del sensor en movimientos; ignora ruido y caminar; pausa después de un gesto |
+| `CalibrationTest` | La calibración guiada se ajusta a tu fuerza y nunca deja valores inválidos |
+| `LearnerTest` | La IA aprende círculo y Z, los distingue, aprende con el uso, exporta e importa |
+| `CalculadoraTest` | Suma, resta, decimales, porcentaje, división por cero, borrar |
+| `FormatoTiempoTest` | Tiempos del cronómetro y temporizador |
+| `AccionesTest` | Lo que tiene sonido pregunta "¿Deseas…?"; cámara y apps se abren de una vez |
+| `GestosYAppsTest` | Gestos, acciones por defecto y las 16 apps del reloj |
+| `RelojTest` | Cronómetro y hora exacta de las alarmas |
+
+En GitHub, cada cambio corre las pruebas, el análisis de Android y crea el APK (`.github/workflows/android.yml`).
