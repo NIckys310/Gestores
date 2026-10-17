@@ -39,18 +39,38 @@ Con el celular en la mano o en la muñeca (banda deportiva), activa **✋ Gestos
 Android Studio → **File → Open** → carpeta `Gestores`. Módulo único: **mobile**.
 Compilar: `gradlew :mobile:assembleDebug` (con JDK 17–21).
 
+## Cómo está organizado (arquitectura)
+```
+MainActivity ─▶ WatchHome (pantalla del reloj, Compose)
+                   │  lee y avisa a
+                   ▼
+              RelojViewModel ── qué se ve (esfera / menú / app) y qué esfera está puesta
+                   │                (sobrevive a girar el celular y a que Android cierre la app)
+                   ▼
+   WatchState · PhoneBus ── estado compartido con el servicio de gestos (cronómetro, alarmas, "¿Deseas…?")
+                   ▲
+PhoneGestureService ─▶ GestureEngine (sensores → movimiento → gesto) ─▶ ActionRunner (acción)
+```
+- La lógica sin pantalla (motor de gestos, calculadora, tiempos, navegación) se prueba sin celular.
+- La IA y la calibración guardan solo sus preferencias, nunca el `Context` (sin fugas de memoria).
+
 ## Qué archivo cambiar
 | Quiero cambiar… | Archivo |
 |---|---|
 | El reloj, la corona y las esferas | `mobile/.../WatchHome.kt` |
-| Las apps de dentro del reloj | `mobile/.../WatchApps.kt` |
-| Alarmas, temporizador, agua | `mobile/.../WatchState.kt` |
+| Cómo se navega dentro del reloj | `mobile/.../RelojViewModel.kt` |
+| La lista de apps y las piezas comunes (botones, anillos) | `mobile/.../WatchApps.kt` |
+| Alarma, cronómetro, temporizador, calendario | `mobile/.../AppsReloj.kt` |
+| Pasos, respirar, agua, ejercicio | `mobile/.../AppsSalud.kt` |
+| Linterna, clima, calculadora, notas, música | `mobile/.../AppsUtilidades.kt` |
+| La sección Gestores, entrenar la IA y ajustes | `mobile/.../AppsGestores.kt` |
+| Alarmas, temporizador y agua (que suenen a tiempo) | `mobile/.../WatchState.kt` |
 | Qué tan fuerte debe ser un gesto y la IA | `mobile/.../GestureEngine.kt` |
 | Lo que hace cada gesto | `mobile/.../ActionRunner.kt` y `Shared.kt` |
 | Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../Theme.kt` |
 
 ## Pruebas automáticas
-Gestores tiene **95 pruebas** que corren en la computadora, sin celular:
+Gestores tiene **111 pruebas** que corren en la computadora, sin celular:
 
 ```bash
 gradlew :mobile:testDebugUnitTest
@@ -67,5 +87,6 @@ gradlew :mobile:testDebugUnitTest
 | `AccionesTest` | Lo que tiene sonido pregunta "¿Deseas…?"; cámara y apps se abren de una vez |
 | `GestosYAppsTest` | Gestos, acciones por defecto y las 16 apps del reloj |
 | `RelojTest` | Cronómetro y hora exacta de las alarmas |
+| `RelojViewModelTest` | Navegación del reloj (esfera ⇄ menú ⇄ apps), esferas, botón lateral y lo que piden los gestos |
 
 En GitHub, cada cambio corre las pruebas, el análisis de Android y crea el APK (`.github/workflows/android.yml`).
