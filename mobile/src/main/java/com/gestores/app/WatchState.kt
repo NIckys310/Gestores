@@ -55,6 +55,7 @@ object WatchState {
         aod.value = ctx.prefs().getBoolean("aod", false)
         shape.value = ctx.prefs().getString("shape", "square") ?: "square"
         gestoresOn.value = ctx.prefs().getBoolean("gestores_on", false)
+        timerEnd.value = ctx.prefs().getLong("timer_end", 0L).takeIf { it > System.currentTimeMillis() } ?: 0L
         if (gestoresOn.value && !PhoneBus.running.value) runCatching { PhoneGestureService.start(ctx) }
     }
     val torch = MutableStateFlow(false)
@@ -131,9 +132,10 @@ object Alarms {
 
     fun startTimer(ctx: Context, ms: Long) {
         WatchState.timerEnd.value = System.currentTimeMillis() + ms
+        ctx.prefs().edit().putLong("timer_end", WatchState.timerEnd.value).apply()
         exact(ctx, WatchState.timerEnd.value, pi(ctx, TIMER_ID, "⏲️ ¡Se acabó el tiempo!"))
     }
-    fun stopTimer(ctx: Context) { WatchState.timerEnd.value = 0; cancel(ctx, TIMER_ID) }
+    fun stopTimer(ctx: Context) { WatchState.timerEnd.value = 0; ctx.prefs().edit().remove("timer_end").apply(); cancel(ctx, TIMER_ID) }
 
     /** Recordatorio de agua cada 2 horas (solo de 8 a. m. a 9 p. m.). */
     fun waterReminder(ctx: Context, on: Boolean) {
@@ -180,8 +182,17 @@ class AlarmReceiver : BroadcastReceiver() {
             .build()
         if (Build.VERSION.SDK_INT < 33 || ctx.has(Manifest.permission.POST_NOTIFICATIONS))
             runCatching { NotificationManagerCompat.from(ctx).notify(id, n) }
-        if (id == 900) WatchState.timerEnd.value = 0
+        if (id == 900) { WatchState.timerEnd.value = 0; ctx.prefs().edit().remove("timer_end").apply() }
         // La alarma se repite cada día
         Alarms.list(ctx).firstOrNull { it.id == id && it.on }?.let { Alarms.schedule(ctx, it) }
+    }
+}
+
+/** Al prender el celular: vuelve a programar las alarmas y, si estaban activos, los gestos. */
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(ctx: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        Alarms.rescheduleAll(ctx)
+        if (ctx.prefs().getBoolean("gestores_on", false)) runCatching { PhoneGestureService.start(ctx) }
     }
 }

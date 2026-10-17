@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Volver a programar las alarmas al prender el celular -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Abrir la cámara o apps con un gesto aunque Gestores esté en segundo plano -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -43,6 +45,11 @@
         <service android:name=".PhoneGestureService" android:exported="false" />
         <!-- Alarmas, temporizador y recordatorio de agua -->
         <receiver android:name=".AlarmReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         <!-- Botones Sí / No antes de poner sonido -->
         <receiver android:name=".ConfirmReceiver" android:exported="false" />
     </application>
