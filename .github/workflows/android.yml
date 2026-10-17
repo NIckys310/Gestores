@@ -1,0 +1,34 @@
+# Revisa Gestores en cada cambio: pruebas automáticas, análisis de Android (lint) y APK.
+name: Pruebas de Gestores
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Pruebas automáticas (gestos, IA, calculadora, alarmas…)
+        run: ./gradlew :mobile:testDebugUnitTest --console=plain
+      - name: Análisis de Android (lint)
+        run: ./gradlew :mobile:lintDebug --console=plain
+      - name: Crear el APK
+        run: ./gradlew :mobile:assembleDebug --console=plain
+      - name: Guardar el APK y los reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestores
+          path: |
+            mobile/build/outputs/apk/debug/*.apk
+            mobile/build/reports/
+          if-no-files-found: ignore
