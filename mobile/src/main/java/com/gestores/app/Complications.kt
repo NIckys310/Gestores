@@ -37,7 +37,9 @@ data class Complications(
     val nextAlarm: String? = null,
 )
 
-fun Context.has(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
+fun Context.has(p: String) =
+    (p == Manifest.permission.ACTIVITY_RECOGNITION && android.os.Build.VERSION.SDK_INT < 29) ||
+        ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
 @Composable
 fun rememberComplications(): Complications {
