@@ -1,6 +1,7 @@
 package com.gestores.app
 
 import android.content.Context
+import android.content.SharedPreferences
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -126,13 +127,14 @@ object Calibration {
     private val base = mapOf("alzar" to 9f, "bajar" to 9f, "girar" to 7f, "doble_giro" to 7f, "sacudir" to 7f, "doble_golpe" to 15f, "toques" to 15f)
     val calibrable get() = base.keys.toList()
     private val factors = mutableMapOf<String, Float>()
-    private var ctx: Context? = null
+    // Solo se guardan las preferencias (no el Context): así no hay fugas de memoria
+    private var prefs: SharedPreferences? = null
     private val ser = MapSerializer(String.serializer(), Float.serializer())
 
     fun init(c: Context) {
-        if (ctx != null) return
-        ctx = c.applicationContext
-        c.prefs().getString("calibration", null)?.let { runCatching { factors.putAll(json.decodeFromString(ser, it)) } }
+        if (prefs != null) return
+        prefs = c.prefs()
+        prefs?.getString("calibration", null)?.let { runCatching { factors.putAll(json.decodeFromString(ser, it)) } }
     }
 
     fun factor(id: String) = factors[id] ?: 1f
@@ -160,7 +162,7 @@ object Calibration {
         return f
     }
 
-    private fun save() { ctx?.prefs()?.edit()?.putString("calibration", json.encodeToString(ser, factors))?.apply() }
+    private fun save() { prefs?.edit()?.putString("calibration", json.encodeToString(ser, factors))?.apply() }
 
     /** Borra toda la calibración en memoria (para las pruebas automáticas). */
     internal fun resetForTests() { factors.clear() }
@@ -175,7 +177,7 @@ object Calibration {
 object Learner {
     private const val N = 32
     private const val BAND = 6
-    private lateinit var appCtx: Context
+    private var prefs: SharedPreferences? = null      // sin Context guardado: no hay fugas de memoria
     private val templates = mutableMapOf<String, MutableList<List<FloatArray>>>()
     private val ser = MapSerializer(String.serializer(), ListSerializer(ListSerializer(ListSerializer(Float.serializer()))))
 
@@ -185,10 +187,11 @@ object Learner {
 
     fun init(ctx: Context) {
         Calibration.init(ctx)
-        if (::appCtx.isInitialized) return
-        appCtx = ctx.applicationContext
-        appCtx.prefs().getString("ai_names", null)?.let { runCatching { names.putAll(json.decodeFromString(nameSer, it)) } }
-        appCtx.prefs().getString("templates", null)?.let { s ->
+        if (prefs != null) return
+        val p = ctx.prefs()
+        prefs = p
+        p.getString("ai_names", null)?.let { runCatching { names.putAll(json.decodeFromString(nameSer, it)) } }
+        p.getString("templates", null)?.let { s ->
             runCatching { json.decodeFromString(ser, s) }.getOrNull()?.forEach { (id, list) ->
                 templates[id] = list.map { seq -> seq.map { it.toFloatArray() } }.toMutableList()
             }
@@ -218,7 +221,7 @@ object Learner {
 
     /** Guarda en el celular solo si la app ya inició (en las pruebas automáticas no hay celular). */
     private fun saveNames() {
-        if (::appCtx.isInitialized) appCtx.prefs().edit().putString("ai_names", json.encodeToString(nameSer, names)).apply()
+        prefs?.edit()?.putString("ai_names", json.encodeToString(nameSer, names))?.apply()
     }
 
     /** Exporta los gestos aprendidos, sus nombres y la calibración (para guardarlos o pasarlos a otro celular). */
@@ -282,9 +285,9 @@ object Learner {
     }
 
     private fun save() {
-        if (!::appCtx.isInitialized) return
+        val p = prefs ?: return
         val plain = templates.mapValues { (_, list) -> list.map { seq -> seq.map { it.toList() } } }
-        appCtx.prefs().edit().putString("templates", json.encodeToString(ser, plain)).apply()
+        p.edit().putString("templates", json.encodeToString(ser, plain)).apply()
     }
 
     /** Borra todo lo aprendido en memoria (para las pruebas automáticas). */
