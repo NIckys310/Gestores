@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de un solo color (Android 13+ lo pinta con el color del tema): reloj, mano y ondas de gesto -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- caja del reloj (solo el borde) -->
+    <path android:pathData="M42,30.5h24a9.5,9.5 0,0 1,9.5 9.5v28a9.5,9.5 0,0 1,-9.5 9.5h-24a9.5,9.5 0,0 1,-9.5 -9.5v-28a9.5,9.5 0,0 1,9.5 -9.5z"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:fillColor="#00000000" />
+    <!-- correa -->
+    <path android:pathData="M45,22h18v7h-18zM45,79h18v7h-18z" android:fillColor="#FFFFFFFF" />
+    <!-- ondas del gesto -->
+    <path android:pathData="M40.5,47a12,12 0,0 0,0 14M67.5,47a12,12 0,0 1,0 14" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <!-- mano -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M48.6,57V45.2a1.6,1.6 0,0 1,3.2 0V54h0.6V42.4a1.6,1.6 0,0 1,3.2 0V54h0.6V43.6a1.6,1.6 0,0 1,3.2 0V55h0.6v-8.2a1.6,1.6 0,0 1,3.2 0V60c0,5.2 -3.4,9 -8.4,9c-3.2,0 -5.2,-1.4 -6.8,-3.8l-4.4,-6.6a1.7,1.7 0,0 1,2.6 -2.1z" />
+</vector>
