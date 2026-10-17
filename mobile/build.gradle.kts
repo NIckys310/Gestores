@@ -21,6 +21,8 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    // Pruebas automáticas en la computadora (sin celular): las clases de Android devuelven valores vacíos
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 dependencies {
@@ -33,4 +35,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Pruebas automáticas
+    testImplementation("junit:junit:4.13.2")
 }
