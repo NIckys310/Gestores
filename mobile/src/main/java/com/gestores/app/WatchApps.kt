@@ -201,16 +201,6 @@ private fun ticker(periodMs: Long = 0): Long {
     return now
 }
 
-private fun fmt(ms: Long, cents: Boolean = true): String {
-    val t = ms.coerceAtLeast(0)
-    val h = t / 3_600_000; val m = t / 60_000 % 60; val s = t / 1000 % 60; val c = t / 10 % 100
-    return when {
-        h > 0 -> "%d:%02d:%02d".format(h, m, s)
-        cents -> "%02d:%02d.%02d".format(m, s, c)
-        else -> "%02d:%02d".format(m, s)
-    }
-}
-
 private fun today() = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
 
 /* ---------------- RELOJ ---------------- */
@@ -265,14 +255,14 @@ private fun ChronoApp() {
     val t = WatchState.chronoNow()
     Dial {
         Title("CRONÓMETRO")
-        Ring(((t / 1000f) % 60f) / 60f, 130) { Big(fmt(t), 26.sp) }
+        Ring(((t / 1000f) % 60f) / 60f, 130) { Big(formatoTiempo(t), 26.sp) }
         Line {
             Round(if (running) "⏸" else "▶", 52, filled = true) { WatchState.toggleChrono() }
             Round(if (running) "⚑" else "↺", 44) {
                 if (running) WatchState.laps.value = listOf(t) + laps else WatchState.resetChrono()
             }
         }
-        laps.take(4).forEachIndexed { i, l -> Small("Vuelta ${laps.size - i}   ${fmt(l)}") }
+        laps.take(4).forEachIndexed { i, l -> Small("Vuelta ${laps.size - i}   ${formatoTiempo(l)}") }
     }
 }
 
@@ -286,7 +276,7 @@ private fun TimerApp() {
         Title("TEMPORIZADOR")
         if (end > 0) {
             val left = end - now
-            Ring(left / (minutes * 60_000f)) { Big(fmt(left, cents = false), 30.sp) }
+            Ring(left / (minutes * 60_000f)) { Big(formatoTiempo(left, centesimas = false), 30.sp) }
             Pill("Detener", filled = true) { Alarms.stopTimer(ctx) }
         } else {
             Line { Round("−", 38) { minutes = (minutes - 1).coerceAtLeast(1) }; Big("$minutes", 44.sp); Round("+", 38) { minutes = (minutes + 1).coerceAtMost(180) } }
@@ -418,7 +408,7 @@ private fun WorkoutApp() {
         } else {
             val ms = now - start
             val steps = if (steps0 >= 0) ((c.steps ?: steps0) - steps0).coerceAtLeast(0) else 0
-            Big(fmt(ms, cents = false), 34.sp)
+            Big(formatoTiempo(ms, centesimas = false), 34.sp)
             Small("$steps pasos · %.2f km".format(steps * 0.00075f))
             Small("≈ ${(steps * 0.04f + ms / 60_000f * 3f).toInt()} kcal")
             Pill("■ Terminar", filled = true) { WatchState.workoutStart.value = 0L }
@@ -464,24 +454,9 @@ private fun WeatherApp() {
 @Composable
 private fun CalcApp() {
     val eng = LocalEng.current
-    var display by remember { mutableStateOf("0") }
-    var acc by remember { mutableStateOf<Double?>(null) }
-    var op by remember { mutableStateOf<String?>(null) }
-    var fresh by remember { mutableStateOf(true) }
-    fun show(v: Double) = if (v.isNaN() || v.isInfinite()) "Error" else if (v == v.toLong().toDouble()) v.toLong().toString() else "%.6f".format(Locale.US, v).trimEnd('0').trimEnd('.')
-    fun apply(a: Double, b: Double, o: String?) = when (o) { "+" -> a + b; "−" -> a - b; "×" -> a * b; "÷" -> a / b; else -> b }
-    fun press(k: String) {
-        val cur = display.toDoubleOrNull() ?: 0.0
-        when (k) {
-            "C" -> { display = "0"; acc = null; op = null; fresh = true }
-            "⌫" -> display = display.dropLast(1).ifBlank { "0" }
-            "%" -> display = show(cur / 100)
-            "+", "−", "×", "÷" -> { acc = acc?.let { if (fresh) it else apply(it, cur, op) } ?: cur; display = show(acc!!); op = k; fresh = true }
-            "=" -> { acc?.let { display = show(apply(it, cur, op)) }; acc = null; op = null; fresh = true }
-            "." -> { if (fresh) { display = "0."; fresh = false } else if ('.' !in display) display += "." }
-            else -> { display = if (fresh || display == "0") k else (display + k).take(12); fresh = false }
-        }
-    }
+    val calc = remember { Calculadora() }
+    var display by remember { mutableStateOf(calc.pantalla) }
+    fun press(k: String) { calc.pulsar(k); display = calc.pantalla }
     Dial(scroll = false) {
         Text(display, color = eng.text, fontFamily = FontFamily.SansSerif, fontSize = 26.sp, maxLines = 1, textAlign = TextAlign.End,
             modifier = Modifier.width(176.dp))
