@@ -12,8 +12,8 @@ android {
         applicationId = "com.gestores.app"
         minSdk = 26
         targetSdk = 33
-        versionCode = 7
-        versionName = "4.3"
+        versionCode = 8
+        versionName = "4.4"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
