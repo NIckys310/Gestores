@@ -31,6 +31,10 @@ class IdiomaTest {
         assertEquals("Lucas · Save", t.traducir("Lucas · Guardar"))
     }
 
+    @Test fun `el icono se conserva y se traduce el nombre`() {
+        assertEquals("⚙️ Save", t.traducir("⚙️ Guardar"))
+    }
+
     @Test fun `lo desconocido se queda igual y conserva espacios`() {
         assertEquals("Mi nota", t.traducir("Mi nota"))
         assertEquals("  Save ", t.traducir("  Guardar "))

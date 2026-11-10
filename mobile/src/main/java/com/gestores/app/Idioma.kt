@@ -58,9 +58,12 @@ internal class Traductor(dic: Map<String, String>) {
         for (p in patrones) {
             val m = p.re.find(limpio) ?: continue
             var i = 1
-            return HUECO.replace(p.en) { Regex.escapeReplacement(buscar(m.groupValues[i++].trim(), nivel + 1)).replace("\\", "") }
+            return HUECO.replace(p.en) { buscar(m.groupValues[i++].trim(), nivel + 1) }
         }
         if (" · " in limpio) return limpio.split(" · ").joinToString(" · ") { buscar(it, nivel + 1) }
+        // "⚙️ Ajustes": el ícono se deja y se traduce el resto
+        val icono = limpio.takeWhile { !it.isLetter() }
+        if (icono.isNotEmpty() && icono.length < limpio.length) return icono + buscar(limpio.substring(icono.length), nivel + 1)
         return limpio
     }
 
