@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -290,6 +289,8 @@ internal fun SettingsApp(mode: String, onMode: (String) -> Unit) {
     val log = remember { EventLog.list(ctx) }
     Dial {
         Title("AJUSTES")
+        Small("Idioma")
+        Line { listOf("es" to "Español", "en" to "English").forEach { (k, l) -> Pill(l, filled = Idioma.codigo == k) { Idioma.cambiar(ctx, k) } } }
         Small("Modo claro / oscuro")
         Line { listOf("system" to "Auto", "dark" to "Oscuro", "light" to "Claro").forEach { (k, l) -> Pill(l, filled = mode == k) { onMode(k) } } }
         val shape by WatchState.shape.collectAsState()
@@ -303,7 +304,7 @@ internal fun SettingsApp(mode: String, onMode: (String) -> Unit) {
         Small("Últimos gestos")
         if (log.isEmpty()) Small("Todavía ninguno")
         log.take(6).forEach { e ->
-            Text("${SimpleDateFormat("HH:mm", Locale("es")).format(Date(e.time))} ${Gestures.label(e.gesture)}", color = eng.text, fontSize = 11.sp)
+            Text("${SimpleDateFormat("HH:mm", Idioma.locale).format(Date(e.time))} ${Gestures.label(e.gesture)}", color = eng.text, fontSize = 11.sp)
         }
     }
 }
