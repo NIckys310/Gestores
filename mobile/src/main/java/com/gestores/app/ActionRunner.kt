@@ -60,16 +60,16 @@ object ActionRunner {
     @SuppressLint("MissingPermission")
     private fun notifyConfirm(ctx: Context, r: Rule) {
         ctx.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel("confirmar", "Preguntas antes de poner sonido", NotificationManager.IMPORTANCE_HIGH))
+            .createNotificationChannel(NotificationChannel("confirmar", tr("Preguntas antes de poner sonido"), NotificationManager.IMPORTANCE_HIGH))
         fun btn(yes: Boolean) = PendingIntent.getBroadcast(ctx, if (yes) 21 else 22,
             Intent(ctx, ConfirmReceiver::class.java).putExtra("yes", yes), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(ctx, "confirmar")
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(question(r))
-            .setContentText(r.label)
+            .setContentTitle(tr(question(r)))
+            .setContentText(tr(r.label))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setTimeoutAfter(20_000)
-            .addAction(0, "Sí", btn(true))
+            .addAction(0, tr("Sí"), btn(true))
             .addAction(0, "No", btn(false))
             .build()
         runCatching { NotificationManagerCompat.from(ctx).notify(CONFIRM_ID, n) }
@@ -104,10 +104,10 @@ object ActionRunner {
     @SuppressLint("MissingPermission")
     private fun notifyToOpen(ctx: Context, intent: Intent, label: String) {
         ctx.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel("abrir", "Abrir apps con gestos", NotificationManager.IMPORTANCE_HIGH))
+            .createNotificationChannel(NotificationChannel("abrir", tr("Abrir apps con gestos"), NotificationManager.IMPORTANCE_HIGH))
         val pi = PendingIntent.getActivity(ctx, label.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(ctx, "abrir").setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Gesto recibido").setContentText("Toca para abrir $label")
+            .setContentTitle(tr("Gesto recibido")).setContentText(tr("Toca para abrir $label"))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setContentIntent(pi).build()
         runCatching { NotificationManagerCompat.from(ctx).notify(label.hashCode(), n) }
     }

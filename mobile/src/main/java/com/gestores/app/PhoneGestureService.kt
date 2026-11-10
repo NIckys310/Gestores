@@ -89,7 +89,7 @@ class PhoneGestureService : Service(), SensorEventListener {
 
         private fun createChannel(ctx: Context) {
             ctx.getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(NotificationChannel(CHANNEL_RUN, "Detección de gestos", NotificationManager.IMPORTANCE_LOW))
+                .createNotificationChannel(NotificationChannel(CHANNEL_RUN, tr("Detección de gestos"), NotificationManager.IMPORTANCE_LOW))
         }
     }
 
@@ -211,11 +211,11 @@ class PhoneGestureService : Service(), SensorEventListener {
         val stop = PendingIntent.getService(this, 1, Intent(this, PhoneGestureService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL_RUN)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Gestores · detectando gestos")
-            .setContentText("Toca para abrir el reloj")
+            .setContentTitle(tr("Gestores · detectando gestos"))
+            .setContentText(tr("Toca para abrir el reloj"))
             .setOngoing(true)
             .setContentIntent(open)
-            .addAction(0, "Detener", stop)
+            .addAction(0, tr("Detener"), stop)
             .build()
     }
 }
