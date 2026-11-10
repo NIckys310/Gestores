@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -516,7 +515,7 @@ private fun DigitalFace(now: Long, aod: Boolean, c: Complications, running: Bool
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("%02d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)),
             color = if (aod) eng.muted else eng.primary, fontFamily = FontFamily.SansSerif, fontSize = 66.sp, fontWeight = FontWeight.Thin)
-        Text(java.text.SimpleDateFormat("EEEE d 'de' MMMM", Locale("es")).format(cal.time).replaceFirstChar { it.uppercase() },
+        Text(java.text.SimpleDateFormat(if (Idioma.codigo == "en") "EEEE, MMMM d" else "EEEE d 'de' MMMM", Idioma.locale).format(cal.time).replaceFirstChar { it.uppercase() },
             color = eng.text, fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
         if (!aod) {
             Spacer(Modifier.height(10.dp))

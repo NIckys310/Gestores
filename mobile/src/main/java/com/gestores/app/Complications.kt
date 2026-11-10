@@ -55,7 +55,7 @@ fun rememberComplications(): Complications {
             val level = b?.let { it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) * 100 / it.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) }
             val charging = b?.getIntExtra(BatteryManager.EXTRA_STATUS, -1).let { it == BatteryManager.BATTERY_STATUS_CHARGING || it == BatteryManager.BATTERY_STATUS_FULL }
             val alarm = ctx.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
-                ?.let { SimpleDateFormat("EEE HH:mm", Locale("es")).format(Date(it)) }
+                ?.let { SimpleDateFormat("EEE HH:mm", Idioma.locale).format(Date(it)) }
             data = data.copy(battery = level, charging = charging, nextAlarm = alarm)
             delay(60_000)
         }

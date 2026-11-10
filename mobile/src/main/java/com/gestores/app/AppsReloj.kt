@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -171,7 +170,7 @@ internal fun CalendarApp() {
     Dial(scroll = false) {
         Line {
             Text("‹", color = eng.primary, fontSize = 22.sp, modifier = Modifier.clickable { offset-- }.padding(horizontal = 6.dp))
-            Title(SimpleDateFormat("MMMM yyyy", Locale("es")).format(c.time).uppercase())
+            Title(SimpleDateFormat("MMMM yyyy", Idioma.locale).format(c.time).uppercase())
             Text("›", color = eng.primary, fontSize = 22.sp, modifier = Modifier.clickable { offset++ }.padding(horizontal = 6.dp))
         }
         Row { listOf("L", "M", "M", "J", "V", "S", "D").forEach { Text(it, color = eng.muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.width(26.dp)) } }

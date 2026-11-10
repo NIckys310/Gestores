@@ -149,11 +149,11 @@ object Alarms {
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        nm.createNotificationChannel(NotificationChannel(CH_ALARM, "Alarmas y temporizador", NotificationManager.IMPORTANCE_HIGH).apply {
+        nm.createNotificationChannel(NotificationChannel(CH_ALARM, tr("Alarmas y temporizador"), NotificationManager.IMPORTANCE_HIGH).apply {
             setSound(alarmSound, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
             enableVibration(true); vibrationPattern = longArrayOf(0, 600, 300, 600, 300, 600)
         })
-        nm.createNotificationChannel(NotificationChannel(CH_WATER, "Recordatorio de agua", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_WATER, tr("Recordatorio de agua"), NotificationManager.IMPORTANCE_DEFAULT))
     }
 }
 
@@ -172,8 +172,8 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarm = id != 901
         val n = NotificationCompat.Builder(ctx, if (alarm) Alarms.CH_ALARM else Alarms.CH_WATER)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(label)
-            .setContentText(if (alarm) SimpleDateFormat("HH:mm", Locale("es")).format(Date()) else "Un vaso ahora y anótalo en el reloj")
+            .setContentTitle(tr(label))
+            .setContentText(if (alarm) SimpleDateFormat("HH:mm", Idioma.locale).format(Date()) else tr("Un vaso ahora y anótalo en el reloj"))
             .setPriority(if (alarm) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(if (alarm) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(open)
