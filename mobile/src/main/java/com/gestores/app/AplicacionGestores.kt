@@ -6,6 +6,7 @@ import android.app.Application
 class AplicacionGestores : Application() {
     override fun onCreate() {
         super.onCreate()
+        Fallos.iniciar(this)
         Idioma.cargar(this)
     }
 }
