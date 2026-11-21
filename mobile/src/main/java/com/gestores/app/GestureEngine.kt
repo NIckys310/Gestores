@@ -134,7 +134,7 @@ object Calibration {
     fun init(c: Context) {
         if (prefs != null) return
         prefs = c.prefs()
-        prefs?.getString("calibration", null)?.let { runCatching { factors.putAll(json.decodeFromString(ser, it)) } }
+        prefs?.getString("calibration", null)?.let { runCatching { factors.putAll(json.decodeFromString(ser, it)) }.onFailure { Fallos.registrar("GestureEngine:137", it) } }
     }
 
     fun factor(id: String) = factors[id] ?: 1f
@@ -190,7 +190,7 @@ object Learner {
         if (prefs != null) return
         val p = ctx.prefs()
         prefs = p
-        p.getString("ai_names", null)?.let { runCatching { names.putAll(json.decodeFromString(nameSer, it)) } }
+        p.getString("ai_names", null)?.let { runCatching { names.putAll(json.decodeFromString(nameSer, it)) }.onFailure { Fallos.registrar("GestureEngine:193", it) } }
         p.getString("templates", null)?.let { s ->
             runCatching { json.decodeFromString(ser, s) }.getOrNull()?.forEach { (id, list) ->
                 templates[id] = list.map { seq -> seq.map { it.toFloatArray() } }.toMutableList()

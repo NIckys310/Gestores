@@ -56,7 +56,7 @@ object WatchState {
         shape.value = ctx.prefs().getString("shape", "square") ?: "square"
         gestoresOn.value = ctx.prefs().getBoolean("gestores_on", false)
         timerEnd.value = ctx.prefs().getLong("timer_end", 0L).takeIf { it > System.currentTimeMillis() } ?: 0L
-        if (gestoresOn.value && !PhoneBus.running.value) runCatching { PhoneGestureService.start(ctx) }
+        if (gestoresOn.value && !PhoneBus.running.value) runCatching { PhoneGestureService.start(ctx) }.onFailure { Fallos.registrar("WatchState:59", it) }
     }
     val torch = MutableStateFlow(false)
 
@@ -181,7 +181,7 @@ class AlarmReceiver : BroadcastReceiver() {
             .apply { if (alarm) setFullScreenIntent(open, true) }
             .build()
         if (Build.VERSION.SDK_INT < 33 || ctx.has(Manifest.permission.POST_NOTIFICATIONS))
-            runCatching { NotificationManagerCompat.from(ctx).notify(id, n) }
+            runCatching { NotificationManagerCompat.from(ctx).notify(id, n) }.onFailure { Fallos.registrar("WatchState:184", it) }
         if (id == 900) { WatchState.timerEnd.value = 0; ctx.prefs().edit().remove("timer_end").apply() }
         // La alarma se repite cada día
         Alarms.list(ctx).firstOrNull { it.id == id && it.on }?.let { Alarms.schedule(ctx, it) }
@@ -193,6 +193,6 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         Alarms.rescheduleAll(ctx)
-        if (ctx.prefs().getBoolean("gestores_on", false)) runCatching { PhoneGestureService.start(ctx) }
+        if (ctx.prefs().getBoolean("gestores_on", false)) runCatching { PhoneGestureService.start(ctx) }.onFailure { Fallos.registrar("WatchState:196", it) }
     }
 }

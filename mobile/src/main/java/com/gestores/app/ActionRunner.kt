@@ -72,7 +72,7 @@ object ActionRunner {
             .addAction(0, tr("Sí"), btn(true))
             .addAction(0, "No", btn(false))
             .build()
-        runCatching { NotificationManagerCompat.from(ctx).notify(CONFIRM_ID, n) }
+        runCatching { NotificationManagerCompat.from(ctx).notify(CONFIRM_ID, n) }.onFailure { Fallos.registrar("ActionRunner:75", it) }
     }
 
     fun execute(ctx: Context, r: Rule): String = runCatching {
@@ -109,7 +109,7 @@ object ActionRunner {
         val n = NotificationCompat.Builder(ctx, "abrir").setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(tr("Gesto recibido")).setContentText(tr("Toca para abrir $label"))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setContentIntent(pi).build()
-        runCatching { NotificationManagerCompat.from(ctx).notify(label.hashCode(), n) }
+        runCatching { NotificationManagerCompat.from(ctx).notify(label.hashCode(), n) }.onFailure { Fallos.registrar("ActionRunner:112", it) }
     }
 
     fun toggleTorch(ctx: Context): String {
