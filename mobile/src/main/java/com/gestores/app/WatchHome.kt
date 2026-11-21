@@ -282,7 +282,7 @@ private fun AppMenu(round: Boolean, onOpen: (String) -> Unit) {
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text("GESTORES", color = eng.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                Text("Todos los gestos y lo que hacen", color = eng.muted, fontSize = 10.sp)
+                Text("Todos los gestos y lo que hacen", color = eng.muted, fontSize = 12.sp)
             }
             // Interruptor general sin entrar a la sección
             Box(
@@ -292,7 +292,7 @@ private fun AppMenu(round: Boolean, onOpen: (String) -> Unit) {
             ) { Box(Modifier.padding(3.dp).size(18.dp).clip(CircleShape).background(Color.White)) }
         }
         WatchApps.all.filter { it.id != "gestos" }.groupBy { it.group }.forEach { (group, apps) ->
-            Text(group.uppercase(), color = eng.primary, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(group.uppercase(), color = eng.primary, fontSize = 12.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold)
             apps.chunked(4).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     row.forEachIndexed { i, a ->
@@ -305,7 +305,7 @@ private fun AppMenu(round: Boolean, onOpen: (String) -> Unit) {
                         ) {
                             Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(eng.raised).border(1.dp, eng.border, RoundedCornerShape(13.dp)),
                                 contentAlignment = Alignment.Center) { Text(a.emoji, fontSize = 19.sp) }
-                            Text(a.name, color = eng.text, fontSize = 9.sp, maxLines = 1)
+                            Text(a.name, color = eng.text, fontSize = 12.sp, maxLines = 1)
                         }
                     }
                 }
@@ -331,7 +331,7 @@ private fun ConfirmOverlay() {
             Text(rule.label.take(2), fontSize = 28.sp)
             Text(ActionRunner.question(rule), color = eng.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Text("Gesto: ${Gestures.label(id)}", color = eng.muted, fontSize = 11.sp)
+            Text("Gesto: ${Gestures.label(id)}", color = eng.muted, fontSize = 12.sp)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Pill("No") { ActionRunner.answer(ctx, false) }
@@ -355,7 +355,7 @@ private fun AskOverlay() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("¿Fue ${Gestures.label(id)}?", color = eng.primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Text("La IA no está segura (${(conf * 100).toInt()} %)", color = eng.muted, fontSize = 11.sp)
+        Text("La IA no está segura (${(conf * 100).toInt()} %)", color = eng.muted, fontSize = 12.sp)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Pill("✗ No") { PhoneGestureService.answer(ctx, false) }
@@ -521,7 +521,7 @@ private fun DigitalFace(now: Long, aod: Boolean, c: Complications, running: Bool
             Spacer(Modifier.height(10.dp))
             ComplicationRow(c)
             c.nextAlarm?.let { Text("⏰ $it", color = eng.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp)) }
-            Text(if (running) "● gestos activos" else "○ gestos apagados", color = if (running) eng.primary else eng.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(if (running) "● gestos activos" else "○ gestos apagados", color = if (running) eng.primary else eng.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -568,7 +568,7 @@ private fun Bubble(icon: String, value: String) {
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Text(icon, fontSize = 13.sp)
-        Text(value, color = eng.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, color = eng.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

@@ -148,7 +148,7 @@ fun Big(t: String, size: TextUnit = 40.sp) {
 @Composable
 fun Small(t: String) {
     val eng = LocalEng.current
-    Text(t, color = eng.muted, fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 14.sp)
+    Text(t, color = eng.muted, fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 14.sp)
 }
 
 /** Botón dorado redondeado. */

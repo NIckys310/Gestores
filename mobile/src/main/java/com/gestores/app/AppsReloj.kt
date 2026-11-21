@@ -173,7 +173,7 @@ internal fun CalendarApp() {
             Title(SimpleDateFormat("MMMM yyyy", Idioma.locale).format(c.time).uppercase())
             Text("›", color = eng.primary, fontSize = 22.sp, modifier = Modifier.clickable { offset++ }.padding(horizontal = 6.dp))
         }
-        Row { listOf("L", "M", "M", "J", "V", "S", "D").forEach { Text(it, color = eng.muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.width(26.dp)) } }
+        Row { listOf("L", "M", "M", "J", "V", "S", "D").forEach { Text(it, color = eng.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.width(26.dp)) } }
         for (week in 0 until 6) {
             if (week * 7 - first >= days) break
             Row {
@@ -181,7 +181,7 @@ internal fun CalendarApp() {
                     val day = week * 7 + d - first + 1
                     val today = isThisMonth && day == now.get(Calendar.DAY_OF_MONTH)
                     Box(Modifier.size(26.dp).clip(CircleShape).then(if (today) Modifier.background(eng.primary) else Modifier), contentAlignment = Alignment.Center) {
-                        if (day in 1..days) Text("$day", color = if (today) eng.bg else eng.text, fontSize = 11.sp)
+                        if (day in 1..days) Text("$day", color = if (today) eng.bg else eng.text, fontSize = 12.sp)
                     }
                 }
             }

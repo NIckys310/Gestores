@@ -111,7 +111,7 @@ internal fun GestoresApp() {
     }
 
     @Composable
-    fun Section(t: String) = Text(t.uppercase(), color = eng.primary, fontSize = 10.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 6.dp))
+    fun Section(t: String) = Text(t.uppercase(), color = eng.primary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 6.dp))
 
     val e = editing
     key(e, pickingApp) { Dial {
@@ -179,7 +179,7 @@ internal fun GestoresApp() {
                             Column(Modifier.weight(1f)) {
                                 Text(g.name, color = eng.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 Text((r?.label ?: "Sin acción") + if (r != null && ActionRunner.needsConfirm(r)) "  · pregunta" else "",
-                                    color = eng.muted, fontSize = 10.sp)
+                                    color = eng.muted, fontSize = 12.sp)
                             }
                             Text("›", color = eng.primary, fontSize = 16.sp)
                         }
@@ -269,7 +269,7 @@ internal fun TrainApp() {
                         PhoneBus.trainCount.value = Learner.count(g.id); PhoneBus.trainingTarget.value = g.id; ensureRunning()
                     }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${g.emoji} ${g.name}", color = eng.text, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text(if (n == 0) "nuevo" else "$n ✓", color = if (n == 0) eng.muted else eng.primary, fontSize = 11.sp)
+                        Text(if (n == 0) "nuevo" else "$n ✓", color = if (n == 0) eng.muted else eng.primary, fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(4.dp))
@@ -304,7 +304,7 @@ internal fun SettingsApp(mode: String, onMode: (String) -> Unit) {
         Small("Últimos gestos")
         if (log.isEmpty()) Small("Todavía ninguno")
         log.take(6).forEach { e ->
-            Text("${SimpleDateFormat("HH:mm", Idioma.locale).format(Date(e.time))} ${Gestures.label(e.gesture)}", color = eng.text, fontSize = 11.sp)
+            Text("${SimpleDateFormat("HH:mm", Idioma.locale).format(Date(e.time))} ${Gestures.label(e.gesture)}", color = eng.text, fontSize = 12.sp)
         }
     }
 }

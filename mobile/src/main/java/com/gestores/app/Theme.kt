@@ -70,7 +70,7 @@ fun isDarkMode(mode: String) = when (mode) { "dark" -> true; "light" -> false; e
 fun GestoresTheme(dark: Boolean, content: @Composable () -> Unit) {
     val p = if (dark) DarkEng else LightEng
     val scheme = if (dark) darkColorScheme(
-        primary = p.primary, onPrimary = Color(0xFF1A120B), secondary = p.steel, error = p.alert,
+        primary = p.primary, onPrimary = if (p.isDark) Color(0xFF1A120B) else Color(0xFFFFF8F0), secondary = p.steel, error = p.alert,
         background = p.bg, surface = p.panel, onSurface = p.text, onBackground = p.text,
         surfaceVariant = p.raised, onSurfaceVariant = p.muted, outline = p.border,
         surfaceContainerHigh = p.raised, surfaceContainer = p.panel,
