@@ -15,6 +15,26 @@ android {
         versionCode = 8
         versionName = "4.4"
     }
+    // Llave PRIVADA de producción: vive fuera del repositorio y su contraseña nunca se escribe aquí.
+    // Se lee de ~/.gradle/gradle.properties (GE_STORE_FILE, GE_STORE_PASSWORD, GE_KEY_ALIAS)
+    // o de variables de entorno con el mismo nombre. Ver FIRMA.md
+    val llave = providers.gradleProperty("GE_STORE_FILE").orElse(providers.environmentVariable("GE_STORE_FILE")).orNull
+    signingConfigs {
+        if (llave != null) create("produccion") {
+            storeFile = file(llave)
+            storePassword = providers.gradleProperty("GE_STORE_PASSWORD").orElse(providers.environmentVariable("GE_STORE_PASSWORD")).get()
+            keyAlias = providers.gradleProperty("GE_KEY_ALIAS").orElse(providers.environmentVariable("GE_KEY_ALIAS")).get()
+            keyPassword = storePassword
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.findByName("produccion")
+            isMinifyEnabled = true          // R8: quita código sin usar y lo ofusca
+            isShrinkResources = true        // quita imágenes y textos sin usar
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
