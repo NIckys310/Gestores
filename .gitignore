@@ -4,3 +4,6 @@ local.properties
 .idea/
 *.iml
 __pycache__/
+# Llaves de firma: NUNCA en el repositorio
+*.jks
+*.keystore
