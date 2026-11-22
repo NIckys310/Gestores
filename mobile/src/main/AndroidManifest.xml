@@ -30,7 +30,7 @@
     </queries>
 
     <application
-        android:name=".AplicacionGestores"
+        android:name=".GestoresApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -45,19 +45,19 @@
         </activity>
 
         <!-- Detecta gestos con los sensores del celular -->
-        <service android:name=".gestos.PhoneGestureService" android:exported="false"
+        <service android:name=".gestures.PhoneGestureService" android:exported="false"
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Lee el acelerómetro y el giroscopio para reconocer gestos de la mano que la persona activó" />
         </service>
         <!-- Alarmas, temporizador y recordatorio de agua -->
-        <receiver android:name=".estado.AlarmReceiver" android:exported="false" />
-        <receiver android:name=".estado.BootReceiver" android:exported="true">
+        <receiver android:name=".state.AlarmReceiver" android:exported="false" />
+        <receiver android:name=".state.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
         <!-- Botones Sí / No antes de poner sonido -->
-        <receiver android:name=".gestos.ConfirmReceiver" android:exported="false" />
+        <receiver android:name=".gestures.ConfirmReceiver" android:exported="false" />
     </application>
 </manifest>

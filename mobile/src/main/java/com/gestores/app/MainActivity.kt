@@ -1,11 +1,11 @@
 package com.gestores.app
 
-import com.gestores.app.reloj.*
+import com.gestores.app.watch.*
 import com.gestores.app.apps.*
-import com.gestores.app.gestos.*
-import com.gestores.app.estado.*
-import com.gestores.app.idioma.*
-import com.gestores.app.fallos.*
+import com.gestores.app.gestures.*
+import com.gestores.app.state.*
+import com.gestores.app.language.*
+import com.gestores.app.errors.*
 
 import android.Manifest
 import android.os.Build

@@ -5,20 +5,20 @@
 Gestores/
 ├─ README.md                  ← estás aquí: qué es, cómo se usa y qué archivo cambiar
 ├─ docs/
-│  ├─ SEGURIDAD.md            ← contraseñas, datos y permisos
-│  ├─ PRUEBAS.md              ← qué revisa cada prueba y cómo correrlas
-│  └─ FIRMA.md                ← llave de firma privada y APK de producción
+│  ├─ SECURITY.md            ← contraseñas, datos y permisos
+│  ├─ TESTING.md              ← qué revisa cada prueba y cómo correrlas
+│  └─ SIGNING.md                ← llave de firma privada y APK de producción
 ├─ .github/workflows/         ← revisión automática en cada cambio (pruebas, lint, emulador)
 └─ mobile/                    ← la app (único módulo)
    └─ src/
       ├─ main/java/com/gestores/app/
-      │  ├─ MainActivity.kt · AplicacionGestores.kt   ← arranque
-      │  ├─ reloj/            ← pantalla del reloj: caja, esferas, menú, avisos, tema, ViewModel
+      │  ├─ MainActivity.kt · GestoresApplication.kt   ← arranque
+      │  ├─ watch/            ← pantalla del reloj: caja, esferas, menú, avisos, tema, ViewModel
       │  ├─ apps/             ← apps dentro del reloj (reloj, salud, utilidades, Gestores)
-      │  ├─ gestos/           ← motor de gestos con IA, servicio de sensores y acciones
+      │  ├─ gestures/           ← motor de gestos con IA, servicio de sensores y acciones
       │  ├─ estado/           ← alarmas, temporizador, agua y estado compartido
-      │  ├─ idioma/           ← español / inglés
-      │  └─ fallos/           ← registro de errores y cierres inesperados
+      │  ├─ language/           ← español / inglés
+      │  └─ errors/           ← registro de errores y cierres inesperados
       ├─ test/                ← pruebas en la computadora
       └─ androidTest/         ← pruebas de interfaz en el emulador
 ```
@@ -67,7 +67,7 @@ Compilar: `gradlew :mobile:assembleDebug` (con JDK 17–21).
 MainActivity ─▶ WatchHome (pantalla del reloj, Compose)
                    │  lee y avisa a
                    ▼
-              RelojViewModel ── qué se ve (esfera / menú / app) y qué esfera está puesta
+              WatchViewModel ── qué se ve (esfera / menú / app) y qué esfera está puesta
                    │                (sobrevive a girar el celular y a que Android cierre la app)
                    ▼
    WatchState · PhoneBus ── estado compartido con el servicio de gestos (cronómetro, alarmas, "¿Deseas…?")
@@ -80,27 +80,27 @@ PhoneGestureService ─▶ GestureEngine (sensores → movimiento → gesto) ─
 ## Qué archivo cambiar
 | Quiero cambiar… | Archivo |
 |---|---|
-| La pantalla del reloj (qué se muestra y cuándo) | `mobile/.../reloj/WatchHome.kt` |
-| La caja: corona, botón lateral y correas | `mobile/.../reloj/CajaReloj.kt` |
-| Las 5 esferas y sus complicaciones | `mobile/.../reloj/EsferasReloj.kt` |
-| El menú de apps dentro del reloj | `mobile/.../reloj/MenuReloj.kt` |
-| "¿Deseas…?", "¿Fue este gesto?" y la animación de gesto | `mobile/.../reloj/AvisosReloj.kt` |
-| Cómo se navega dentro del reloj | `mobile/.../reloj/RelojViewModel.kt` |
+| La pantalla del reloj (qué se muestra y cuándo) | `mobile/.../watch/WatchHome.kt` |
+| La caja: corona, botón lateral y correas | `mobile/.../watch/WatchCase.kt` |
+| Las 5 esferas y sus complicaciones | `mobile/.../watch/WatchFaces.kt` |
+| El menú de apps dentro del reloj | `mobile/.../watch/WatchMenu.kt` |
+| "¿Deseas…?", "¿Fue este gesto?" y la animación de gesto | `mobile/.../watch/WatchAlerts.kt` |
+| Cómo se navega dentro del reloj | `mobile/.../watch/WatchViewModel.kt` |
 | La lista de apps y las piezas comunes (botones, anillos) | `mobile/.../apps/WatchApps.kt` |
-| Alarma, cronómetro, temporizador, calendario | `mobile/.../apps/AppsReloj.kt` |
-| Pasos, respirar, agua, ejercicio | `mobile/.../apps/AppsSalud.kt` |
-| Linterna, clima, calculadora, notas, música | `mobile/.../apps/AppsUtilidades.kt` |
-| La sección Gestores, entrenar la IA y ajustes | `mobile/.../apps/AppsGestores.kt` |
+| Alarma, cronómetro, temporizador, calendario | `mobile/.../apps/ClockApps.kt` |
+| Pasos, respirar, agua, ejercicio | `mobile/.../apps/HealthApps.kt` |
+| Linterna, clima, calculadora, notas, música | `mobile/.../apps/UtilityApps.kt` |
+| La sección Gestores, entrenar la IA y ajustes | `mobile/.../apps/GestoresApps.kt` |
 | Alarmas, temporizador y agua (que suenen a tiempo) | `mobile/.../estado/WatchState.kt` |
-| Qué tan fuerte debe ser un gesto y la IA | `mobile/.../gestos/GestureEngine.kt` |
-| Lo que hace cada gesto | `mobile/.../gestos/ActionRunner.kt` y `gestos/Shared.kt` |
-| Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../reloj/Theme.kt` |
-| Español / inglés | `mobile/.../idioma/Idioma.kt` y `idioma/Traducciones.kt` |
-| Registro de fallos (también cierres inesperados) | `mobile/.../fallos/Fallos.kt` |
-| Pruebas de interfaz en el emulador | `mobile/src/androidTest/.../RelojInterfazTest.kt` |
+| Qué tan fuerte debe ser un gesto y la IA | `mobile/.../gestures/GestureEngine.kt` |
+| Lo que hace cada gesto | `mobile/.../gestures/ActionRunner.kt` y `gestures/Shared.kt` |
+| Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../watch/Theme.kt` |
+| Español / inglés | `mobile/.../language/Language.kt` y `language/Translations.kt` |
+| Registro de fallos (también cierres inesperados) | `mobile/.../errors/ErrorLog.kt` |
+| Pruebas de interfaz en el emulador | `mobile/src/androidTest/.../WatchUiTest.kt` |
 
 ## Pruebas automáticas
-Gestores tiene **126 pruebas** que corren en la computadora, sin celular, y **5 pruebas de interfaz** en el emulador. Detalle en [docs/PRUEBAS.md](docs/PRUEBAS.md).
+Gestores tiene **126 pruebas** que corren en la computadora, sin celular, y **5 pruebas de interfaz** en el emulador. Detalle en [docs/TESTING.md](docs/TESTING.md).
 
 ```bash
 gradlew :mobile:testDebugUnitTest
@@ -112,11 +112,11 @@ gradlew :mobile:testDebugUnitTest
 | `MotionSegmenterTest` | Corta los datos del sensor en movimientos; ignora ruido y caminar; pausa después de un gesto |
 | `CalibrationTest` | La calibración guiada se ajusta a tu fuerza y nunca deja valores inválidos |
 | `LearnerTest` | La IA aprende círculo y Z, los distingue, aprende con el uso, exporta e importa |
-| `CalculadoraTest` | Suma, resta, decimales, porcentaje, división por cero, borrar |
-| `FormatoTiempoTest` | Tiempos del cronómetro y temporizador |
-| `AccionesTest` | Lo que tiene sonido pregunta "¿Deseas…?"; cámara y apps se abren de una vez |
-| `GestosYAppsTest` | Gestos, acciones por defecto y las 16 apps del reloj |
-| `RelojTest` | Cronómetro y hora exacta de las alarmas |
-| `RelojViewModelTest` | Navegación del reloj (esfera ⇄ menú ⇄ apps), esferas, botón lateral y lo que piden los gestos |
+| `CalculatorTest` | Suma, resta, decimales, porcentaje, división por cero, borrar |
+| `TimeFormatTest` | Tiempos del cronómetro y temporizador |
+| `ActionsTest` | Lo que tiene sonido pregunta "¿Deseas…?"; cámara y apps se abren de una vez |
+| `GesturesAndAppsTest` | Gestos, acciones por defecto y las 16 apps del reloj |
+| `WatchTest` | Cronómetro y hora exacta de las alarmas |
+| `WatchViewModelTest` | Navegación del reloj (esfera ⇄ menú ⇄ apps), esferas, botón lateral y lo que piden los gestos |
 
 En GitHub, cada cambio corre las pruebas, el análisis de Android y crea el APK (`.github/workflows/android.yml`).

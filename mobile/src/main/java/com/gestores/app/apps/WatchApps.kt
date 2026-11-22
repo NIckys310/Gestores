@@ -1,11 +1,11 @@
 package com.gestores.app.apps
 
 import com.gestores.app.*
-import com.gestores.app.reloj.*
-import com.gestores.app.gestos.*
-import com.gestores.app.estado.*
-import com.gestores.app.idioma.*
-import com.gestores.app.fallos.*
+import com.gestores.app.watch.*
+import com.gestores.app.gestures.*
+import com.gestores.app.state.*
+import com.gestores.app.language.*
+import com.gestores.app.errors.*
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -76,8 +76,8 @@ import java.util.Locale
 
 /* =========================================================
    APPS DEL RELOJ · lista, pantalla que las abre y piezas comunes
-   Cada grupo de apps está en su archivo: AppsReloj, AppsSalud,
-   AppsUtilidades y AppsGestores.
+   Cada grupo de apps está en su archivo: ClockApps, HealthApps,
+   UtilityApps y GestoresApps.
    Todo funciona dentro del celular: nada se conecta con otros aparatos.
    ========================================================= */
 data class WatchApp(val id: String, val emoji: String, val name: String, val group: String)

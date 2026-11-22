@@ -1,11 +1,11 @@
 package com.gestores.app.apps
 
 import com.gestores.app.*
-import com.gestores.app.reloj.*
-import com.gestores.app.gestos.*
-import com.gestores.app.estado.*
-import com.gestores.app.idioma.*
-import com.gestores.app.fallos.*
+import com.gestores.app.watch.*
+import com.gestores.app.gestures.*
+import com.gestores.app.state.*
+import com.gestores.app.language.*
+import com.gestores.app.errors.*
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -62,7 +62,7 @@ fun rememberComplications(): Complications {
             val level = b?.let { it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) * 100 / it.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) }
             val charging = b?.getIntExtra(BatteryManager.EXTRA_STATUS, -1).let { it == BatteryManager.BATTERY_STATUS_CHARGING || it == BatteryManager.BATTERY_STATUS_FULL }
             val alarm = ctx.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
-                ?.let { SimpleDateFormat("EEE HH:mm", Idioma.locale).format(Date(it)) }
+                ?.let { SimpleDateFormat("EEE HH:mm", Language.locale).format(Date(it)) }
             data = data.copy(battery = level, charging = charging, nextAlarm = alarm)
             delay(60_000)
         }
