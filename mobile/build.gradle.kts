@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.gestores.app"
         minSdk = 26
-        targetSdk = 33
+        targetSdk = 35
         versionCode = 8
         versionName = "4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

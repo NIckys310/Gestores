@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+: el servicio de gestos debe decir de qué tipo es -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Apps del reloj: pasos y clima (ubicación aproximada) -->
@@ -43,7 +45,11 @@
         </activity>
 
         <!-- Detecta gestos con los sensores del celular -->
-        <service android:name=".gestos.PhoneGestureService" android:exported="false" />
+        <service android:name=".gestos.PhoneGestureService" android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Lee el acelerómetro y el giroscopio para reconocer gestos de la mano que la persona activó" />
+        </service>
         <!-- Alarmas, temporizador y recordatorio de agua -->
         <receiver android:name=".estado.AlarmReceiver" android:exported="false" />
         <receiver android:name=".estado.BootReceiver" android:exported="true">
