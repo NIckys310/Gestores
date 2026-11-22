@@ -1,5 +1,12 @@
 package com.gestores.app
 
+import com.gestores.app.reloj.*
+import com.gestores.app.apps.*
+import com.gestores.app.gestos.*
+import com.gestores.app.estado.*
+import com.gestores.app.idioma.*
+import com.gestores.app.fallos.*
+
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

@@ -1,5 +1,12 @@
 package com.gestores.app
 
+import com.gestores.app.reloj.*
+import com.gestores.app.apps.*
+import com.gestores.app.gestos.*
+import com.gestores.app.estado.*
+import com.gestores.app.idioma.*
+import com.gestores.app.fallos.*
+
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin

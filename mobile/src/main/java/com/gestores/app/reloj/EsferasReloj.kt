@@ -1,4 +1,11 @@
-package com.gestores.app
+package com.gestores.app.reloj
+
+import com.gestores.app.*
+import com.gestores.app.apps.*
+import com.gestores.app.gestos.*
+import com.gestores.app.estado.*
+import com.gestores.app.idioma.*
+import com.gestores.app.fallos.*
 
 import android.graphics.Paint
 import android.graphics.Typeface

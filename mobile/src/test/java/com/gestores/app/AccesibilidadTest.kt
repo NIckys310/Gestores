@@ -1,5 +1,12 @@
 package com.gestores.app
 
+import com.gestores.app.reloj.*
+import com.gestores.app.apps.*
+import com.gestores.app.gestos.*
+import com.gestores.app.estado.*
+import com.gestores.app.idioma.*
+import com.gestores.app.fallos.*
+
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertEquals
@@ -31,7 +38,7 @@ class AccesibilidadTest {
     @Test fun `modo claro cumple contraste`() = revisar("claro", LightEng, Color(0xFFFFF8F0))
 
     @Test fun `ningun texto mide menos de 12 sp`() {
-        val pequenos = File("src/main/java/com/gestores/app").listFiles()!!.filter { it.extension == "kt" }
+        val pequenos = File("src/main/java/com/gestores/app").walkTopDown().toList().filter { it.extension == "kt" }
             .flatMap { f -> Regex("""fontSize = (\d+(?:\.\d+)?)\.sp""").findAll(f.readText()).map { f.name to it.groupValues[1].toDouble() }.toList() }
             .filter { it.second < 12 }
         assertEquals(emptyList<Pair<String, Double>>(), pequenos)

@@ -1,5 +1,12 @@
 package com.gestores.app
 
+import com.gestores.app.reloj.*
+import com.gestores.app.apps.*
+import com.gestores.app.gestos.*
+import com.gestores.app.estado.*
+import com.gestores.app.idioma.*
+import com.gestores.app.fallos.*
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -53,7 +60,7 @@ class IdiomaTest {
         val llamada = Regex("""\b(?:Text|Title|Small|Pill)\("((?:[^"\\$]|\\.)+)"""")
         val iguales = setOf("Normal", "Digital", "Auto", "No", "ON", "OFF", "Error", "GESTORES", "Gestores", "✗ No")
         val t = Traductor(TRADUCCIONES)
-        val faltan = File("src/main/java/com/gestores/app").listFiles()!!.filter { it.extension == "kt" && it.name != "Traducciones.kt" }
+        val faltan = File("src/main/java/com/gestores/app").walkTopDown().toList().filter { it.extension == "kt" && it.name != "Traducciones.kt" }
             .flatMap { f -> llamada.findAll(f.readText()).map { it.groupValues[1] }.toList() }
             .filter { it.count(Char::isLetter) >= 2 && '%' !in it && it !in iguales && t.traducir(it) == it }
         assertEquals(emptyList<String>(), faltan.distinct())

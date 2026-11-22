@@ -43,15 +43,15 @@
         </activity>
 
         <!-- Detecta gestos con los sensores del celular -->
-        <service android:name=".PhoneGestureService" android:exported="false" />
+        <service android:name=".gestos.PhoneGestureService" android:exported="false" />
         <!-- Alarmas, temporizador y recordatorio de agua -->
-        <receiver android:name=".AlarmReceiver" android:exported="false" />
-        <receiver android:name=".BootReceiver" android:exported="true">
+        <receiver android:name=".estado.AlarmReceiver" android:exported="false" />
+        <receiver android:name=".estado.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
         <!-- Botones Sí / No antes de poner sonido -->
-        <receiver android:name=".ConfirmReceiver" android:exported="false" />
+        <receiver android:name=".gestos.ConfirmReceiver" android:exported="false" />
     </application>
 </manifest>
