@@ -1,6 +1,8 @@
 package com.gestores.app.gestos
 
 import com.gestores.app.*
+import android.content.pm.ServiceInfo
+import androidx.core.app.ServiceCompat
 import com.gestores.app.reloj.*
 import com.gestores.app.apps.*
 import com.gestores.app.estado.*
@@ -31,6 +33,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 /** Estado de la detección de gestos, para mostrarlo en el reloj. */
 object PhoneBus {
     val running = MutableStateFlow(false)
+    /** Se pidió arrancar el servicio pero todavía no termina de hacerlo. */
+    @Volatile var starting = false
     val lastGesture = MutableStateFlow<String?>(null)
     /** Sube en 1 cada vez que se detecta un gesto (para animarlo en la esfera). */
     val gestureEvent = MutableStateFlow(0L)
@@ -63,8 +67,20 @@ class PhoneGestureService : Service(), SensorEventListener {
         /** Por debajo de esta confianza el reloj pregunta "¿Fue este gesto?". */
         const val MIN_CONFIDENCE = 0.55f
 
-        fun start(ctx: Context) = ContextCompat.startForegroundService(ctx, Intent(ctx, PhoneGestureService::class.java))
-        fun stop(ctx: Context) = ctx.stopService(Intent(ctx, PhoneGestureService::class.java))
+        fun start(ctx: Context) {
+            PhoneBus.starting = true
+            ContextCompat.startForegroundService(ctx, Intent(ctx, PhoneGestureService::class.java))
+        }
+        /**
+         * Se detiene enviándole la orden al propio servicio (no con stopService): si el servicio
+         * todavía está arrancando, primero alcanza a anunciarse y luego se apaga. Con stopService,
+         * encender y apagar muy rápido hacía que Android cerrara la app
+         * (ForegroundServiceDidNotStartInTimeException).
+         */
+        fun stop(ctx: Context) {
+            if (!PhoneBus.running.value && !PhoneBus.starting) return
+            ContextCompat.startForegroundService(ctx, Intent(ctx, PhoneGestureService::class.java).setAction(ACTION_STOP))
+        }
         fun loadSensitivity(ctx: Context) = ctx.prefs().getFloat("phone_sensitivity", 1f)
         fun saveSensitivity(ctx: Context, v: Float) {
             PhoneBus.sensitivity.value = v
@@ -111,7 +127,9 @@ class PhoneGestureService : Service(), SensorEventListener {
         Learner.init(this)
         createChannel(this)
         PhoneBus.sensitivity.value = loadSensitivity(this)
-        startForeground(3, buildOngoing())
+        // Android 14+ exige el tipo del servicio (declarado en el manifiesto)
+        ServiceCompat.startForeground(this, 3, buildOngoing(),
+            if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0)
         sensors = getSystemService(SENSOR_SERVICE) as SensorManager
         sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
         sensors.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
@@ -119,6 +137,7 @@ class PhoneGestureService : Service(), SensorEventListener {
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gestores:gestos").apply { acquire(4 * 60 * 60 * 1000L) }
         PhoneBus.running.value = true
+        PhoneBus.starting = false
         PhoneBus.result.value = "Escuchando gestos…"
     }
 
@@ -135,6 +154,7 @@ class PhoneGestureService : Service(), SensorEventListener {
         sensors.unregisterListener(this)
         wakeLock?.let { if (it.isHeld) it.release() }
         PhoneBus.running.value = false
+        PhoneBus.starting = false
         PhoneBus.result.value = "Detección apagada"
         PhoneBus.trainingTarget.value = null
         PhoneBus.calibTarget.value = null
