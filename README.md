@@ -1,5 +1,28 @@
 # Gestores · Tu celular convertido en smartwatch
 
+## Estructura del repositorio
+```
+Gestores/
+├─ README.md                  ← estás aquí: qué es, cómo se usa y qué archivo cambiar
+├─ docs/
+│  ├─ SEGURIDAD.md            ← contraseñas, datos y permisos
+│  ├─ PRUEBAS.md              ← qué revisa cada prueba y cómo correrlas
+│  └─ FIRMA.md                ← llave de firma privada y APK de producción
+├─ .github/workflows/         ← revisión automática en cada cambio (pruebas, lint, emulador)
+└─ mobile/                    ← la app (único módulo)
+   └─ src/
+      ├─ main/java/com/gestores/app/
+      │  ├─ MainActivity.kt · AplicacionGestores.kt   ← arranque
+      │  ├─ reloj/            ← pantalla del reloj: caja, esferas, menú, avisos, tema, ViewModel
+      │  ├─ apps/             ← apps dentro del reloj (reloj, salud, utilidades, Gestores)
+      │  ├─ gestos/           ← motor de gestos con IA, servicio de sensores y acciones
+      │  ├─ estado/           ← alarmas, temporizador, agua y estado compartido
+      │  ├─ idioma/           ← español / inglés
+      │  └─ fallos/           ← registro de errores y cierres inesperados
+      ├─ test/                ← pruebas en la computadora
+      └─ androidTest/         ← pruebas de interfaz en el emulador
+```
+
 Una sola app para el celular. La pantalla es siempre un **reloj inteligente moderno** (cuadrado o
 redondo, caja cobriza y correa café) y todas las apps se abren **dentro del reloj**. Arriba del menú
 está **Gestores**: todos los gestos, qué hace cada uno y el interruptor para activarlos o desactivarlos.
@@ -57,27 +80,27 @@ PhoneGestureService ─▶ GestureEngine (sensores → movimiento → gesto) ─
 ## Qué archivo cambiar
 | Quiero cambiar… | Archivo |
 |---|---|
-| La pantalla del reloj (qué se muestra y cuándo) | `mobile/.../WatchHome.kt` |
-| La caja: corona, botón lateral y correas | `mobile/.../CajaReloj.kt` |
-| Las 5 esferas y sus complicaciones | `mobile/.../EsferasReloj.kt` |
-| El menú de apps dentro del reloj | `mobile/.../MenuReloj.kt` |
-| "¿Deseas…?", "¿Fue este gesto?" y la animación de gesto | `mobile/.../AvisosReloj.kt` |
-| Cómo se navega dentro del reloj | `mobile/.../RelojViewModel.kt` |
-| La lista de apps y las piezas comunes (botones, anillos) | `mobile/.../WatchApps.kt` |
-| Alarma, cronómetro, temporizador, calendario | `mobile/.../AppsReloj.kt` |
-| Pasos, respirar, agua, ejercicio | `mobile/.../AppsSalud.kt` |
-| Linterna, clima, calculadora, notas, música | `mobile/.../AppsUtilidades.kt` |
-| La sección Gestores, entrenar la IA y ajustes | `mobile/.../AppsGestores.kt` |
-| Alarmas, temporizador y agua (que suenen a tiempo) | `mobile/.../WatchState.kt` |
-| Qué tan fuerte debe ser un gesto y la IA | `mobile/.../GestureEngine.kt` |
-| Lo que hace cada gesto | `mobile/.../ActionRunner.kt` y `Shared.kt` |
-| Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../Theme.kt` |
-| Español / inglés | `mobile/.../Idioma.kt` y `Traducciones.kt` |
-| Registro de fallos (también cierres inesperados) | `mobile/.../Fallos.kt` |
+| La pantalla del reloj (qué se muestra y cuándo) | `mobile/.../reloj/WatchHome.kt` |
+| La caja: corona, botón lateral y correas | `mobile/.../reloj/CajaReloj.kt` |
+| Las 5 esferas y sus complicaciones | `mobile/.../reloj/EsferasReloj.kt` |
+| El menú de apps dentro del reloj | `mobile/.../reloj/MenuReloj.kt` |
+| "¿Deseas…?", "¿Fue este gesto?" y la animación de gesto | `mobile/.../reloj/AvisosReloj.kt` |
+| Cómo se navega dentro del reloj | `mobile/.../reloj/RelojViewModel.kt` |
+| La lista de apps y las piezas comunes (botones, anillos) | `mobile/.../apps/WatchApps.kt` |
+| Alarma, cronómetro, temporizador, calendario | `mobile/.../apps/AppsReloj.kt` |
+| Pasos, respirar, agua, ejercicio | `mobile/.../apps/AppsSalud.kt` |
+| Linterna, clima, calculadora, notas, música | `mobile/.../apps/AppsUtilidades.kt` |
+| La sección Gestores, entrenar la IA y ajustes | `mobile/.../apps/AppsGestores.kt` |
+| Alarmas, temporizador y agua (que suenen a tiempo) | `mobile/.../estado/WatchState.kt` |
+| Qué tan fuerte debe ser un gesto y la IA | `mobile/.../gestos/GestureEngine.kt` |
+| Lo que hace cada gesto | `mobile/.../gestos/ActionRunner.kt` y `gestos/Shared.kt` |
+| Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../reloj/Theme.kt` |
+| Español / inglés | `mobile/.../idioma/Idioma.kt` y `idioma/Traducciones.kt` |
+| Registro de fallos (también cierres inesperados) | `mobile/.../fallos/Fallos.kt` |
 | Pruebas de interfaz en el emulador | `mobile/src/androidTest/.../RelojInterfazTest.kt` |
 
 ## Pruebas automáticas
-Gestores tiene **111 pruebas** que corren en la computadora, sin celular:
+Gestores tiene **126 pruebas** que corren en la computadora, sin celular, y **5 pruebas de interfaz** en el emulador. Detalle en [docs/PRUEBAS.md](docs/PRUEBAS.md).
 
 ```bash
 gradlew :mobile:testDebugUnitTest

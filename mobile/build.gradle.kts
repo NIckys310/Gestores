@@ -18,7 +18,7 @@ android {
     }
     // Llave PRIVADA de producción: vive fuera del repositorio y su contraseña nunca se escribe aquí.
     // Se lee de ~/.gradle/gradle.properties (GE_STORE_FILE, GE_STORE_PASSWORD_DPAPI, GE_KEY_ALIAS)
-    // o de variables de entorno con el mismo nombre. Ver FIRMA.md
+    // o de variables de entorno con el mismo nombre. Ver docs/FIRMA.md
     val llave = providers.gradleProperty("GE_STORE_FILE").orElse(providers.environmentVariable("GE_STORE_FILE")).orNull
     signingConfigs {
         if (llave != null) create("produccion") {
