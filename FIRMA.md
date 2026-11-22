@@ -6,7 +6,7 @@ La llave de producción es **privada**: no está en este repositorio.
 |---|---|
 | Archivo | `C:/Users/Nicky/.claves-android/gestores-release.jks` (fuera del repo) |
 | Alias | `gestores` |
-| Contraseña | en `~/.gradle/gradle.properties` como `GE_STORE_PASSWORD` (no se sube a GitHub) |
+| Contraseña | cifrada con DPAPI de Windows en `~/.gradle/gradle.properties` como `GE_STORE_PASSWORD_DPAPI`: solo tu usuario de Windows en este PC puede descifrarla. Nunca está en texto plano ni en GitHub |
 
 ## Crear el APK de producción
 

@@ -17,13 +17,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Llave PRIVADA de producción: vive fuera del repositorio y su contraseña nunca se escribe aquí.
-    // Se lee de ~/.gradle/gradle.properties (GE_STORE_FILE, GE_STORE_PASSWORD, GE_KEY_ALIAS)
+    // Se lee de ~/.gradle/gradle.properties (GE_STORE_FILE, GE_STORE_PASSWORD_DPAPI, GE_KEY_ALIAS)
     // o de variables de entorno con el mismo nombre. Ver FIRMA.md
     val llave = providers.gradleProperty("GE_STORE_FILE").orElse(providers.environmentVariable("GE_STORE_FILE")).orNull
     signingConfigs {
         if (llave != null) create("produccion") {
             storeFile = file(llave)
-            storePassword = providers.gradleProperty("GE_STORE_PASSWORD").orElse(providers.environmentVariable("GE_STORE_PASSWORD")).get()
+            storePassword = contrasenaDeLaLlave("GE")
             keyAlias = providers.gradleProperty("GE_KEY_ALIAS").orElse(providers.environmentVariable("GE_KEY_ALIAS")).get()
             keyPassword = storePassword
         }
@@ -70,4 +70,21 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+/**
+ * Contraseña de la llave de firma, sin escribirla nunca en texto plano:
+ * - En este PC: GE_STORE_PASSWORD_DPAPI guarda la contraseña cifrada con DPAPI de Windows;
+ *   solo el mismo usuario de Windows en este mismo equipo puede descifrarla.
+ * - En GitHub Actions: la variable secreta GE_STORE_PASSWORD.
+ */
+fun contrasenaDeLaLlave(prefijo: String): String {
+    providers.environmentVariable("${prefijo}_STORE_PASSWORD").orNull?.let { return it }
+    val cifrada = providers.gradleProperty("${prefijo}_STORE_PASSWORD_DPAPI").orNull
+        ?: error("Falta ${prefijo}_STORE_PASSWORD_DPAPI en ~/.gradle/gradle.properties (ver FIRMA.md)")
+    val ps = "Add-Type -AssemblyName System.Security; " +
+        "[Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect(" +
+        "[Convert]::FromBase64String('$cifrada'), \$null, 'CurrentUser'))"
+    return providers.exec { commandLine("powershell", "-NoProfile", "-NonInteractive", "-Command", ps) }
+        .standardOutput.asText.get().trim()
 }
