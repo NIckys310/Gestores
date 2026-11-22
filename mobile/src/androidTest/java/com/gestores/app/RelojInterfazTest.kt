@@ -87,6 +87,8 @@ class RelojInterfazTest {
         avanzar()
         compose.onNodeWithText("○ Gestores desactivados").performClick()
         avanzar()
+        // El interruptor arranca el servicio de gestos: el estado llega un instante después
+        compose.waitUntil(5_000) { avanzar(200); compose.onAllNodes(hasText("● Gestores activados")).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("● Gestores activados").assertIsDisplayed()
         compose.onNodeWithText("Mueve el celular para hacer un gesto").assertIsDisplayed()
     }
