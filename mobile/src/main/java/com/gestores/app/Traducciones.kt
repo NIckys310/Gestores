@@ -226,6 +226,8 @@ internal val TRADUCCIONES: Map<String, String> = mapOf(
     "Clásica" to "Classic",
     "Deportiva" to "Sport",
     "Menú" to "Menu",
+    "Corona: abrir el menú o volver" to "Crown: open the menu or go back",
+    "Botón lateral: abrir Gestores" to "Side button: open Gestores",
     "Toca la pantalla o la corona para abrir el menú" to "Tap the screen or the crown to open the menu",
     "Corona o deslizar a la derecha: volver" to "Crown or swipe right: back",
     "{}   ·   ✋ activo" to "{}   ·   ✋ active",
