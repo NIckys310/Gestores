@@ -160,7 +160,7 @@ fun Small(t: String) {
 
 /** Botón dorado redondeado. */
 @Composable
-fun Pill(t: String, filled: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun Pill(t: String, modifier: Modifier = Modifier, filled: Boolean = false, onClick: () -> Unit) {
     val eng = LocalEng.current
     Box(
         modifier.clip(RoundedCornerShape(50)).then(if (filled) Modifier.background(eng.primary) else Modifier)
