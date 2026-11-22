@@ -57,7 +57,11 @@ PhoneGestureService ─▶ GestureEngine (sensores → movimiento → gesto) ─
 ## Qué archivo cambiar
 | Quiero cambiar… | Archivo |
 |---|---|
-| El reloj, la corona y las esferas | `mobile/.../WatchHome.kt` |
+| La pantalla del reloj (qué se muestra y cuándo) | `mobile/.../WatchHome.kt` |
+| La caja: corona, botón lateral y correas | `mobile/.../CajaReloj.kt` |
+| Las 5 esferas y sus complicaciones | `mobile/.../EsferasReloj.kt` |
+| El menú de apps dentro del reloj | `mobile/.../MenuReloj.kt` |
+| "¿Deseas…?", "¿Fue este gesto?" y la animación de gesto | `mobile/.../AvisosReloj.kt` |
 | Cómo se navega dentro del reloj | `mobile/.../RelojViewModel.kt` |
 | La lista de apps y las piezas comunes (botones, anillos) | `mobile/.../WatchApps.kt` |
 | Alarma, cronómetro, temporizador, calendario | `mobile/.../AppsReloj.kt` |
@@ -68,6 +72,9 @@ PhoneGestureService ─▶ GestureEngine (sensores → movimiento → gesto) ─
 | Qué tan fuerte debe ser un gesto y la IA | `mobile/.../GestureEngine.kt` |
 | Lo que hace cada gesto | `mobile/.../ActionRunner.kt` y `Shared.kt` |
 | Colores (negro, café oscuro y cobre; modo claro y oscuro) | `mobile/.../Theme.kt` |
+| Español / inglés | `mobile/.../Idioma.kt` y `Traducciones.kt` |
+| Registro de fallos (también cierres inesperados) | `mobile/.../Fallos.kt` |
+| Pruebas de interfaz en el emulador | `mobile/src/androidTest/.../RelojInterfazTest.kt` |
 
 ## Pruebas automáticas
 Gestores tiene **111 pruebas** que corren en la computadora, sin celular:
