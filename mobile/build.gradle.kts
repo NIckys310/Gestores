@@ -12,8 +12,8 @@ android {
         applicationId = "com.gestores.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "4.4"
+        versionCode = 9
+        versionName = "4.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Llave PRIVADA de producción: vive fuera del repositorio y su contraseña nunca se escribe aquí.
