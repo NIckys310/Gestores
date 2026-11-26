@@ -1,8 +1,10 @@
 # Gestores · Tu celular convertido en smartwatch
 
-## 🎬 Video de presentación
+## 🎬 Video de presentación (4:55)
 
-**[▶ Ver el video de Gestores (4:55)](video/Gestores_presentacion.mp4)**: qué problema resuelve, qué hace, una demo, la arquitectura, la calidad y los aprendizajes. Narrado por Nicoll Valentina.
+[![Ver el video de presentación de Gestores](video/miniatura.png)](video/Gestores_presentacion.mp4)
+
+**[▶ Ver el video de Gestores](video/Gestores_presentacion.mp4)**: qué problema resuelve, qué hace, una demo, la arquitectura, la calidad y los aprendizajes. Narrado por Nicoll Valentina.
 
 ## Estructura del repositorio
 ```
